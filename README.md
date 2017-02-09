@@ -1,2 +1,2 @@
 # ENGINEERING-PROJECTS
-first semester firmware and software projects
+first semester firmware and software projects.
