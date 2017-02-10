@@ -33,54 +33,115 @@
 #include <stdlib.h>
 void dma_init();
 void dma_use();
-#define length 1000
-#define wordsend 1
-char *a,*b;
+#define length 10
+#define wordsend 0
+char *a,*b,*d;
 
 char c[1]={0};
 
 uint32_t k,l;
-int flag1;
+int flag,flag1;
 int time=0,count=0;
 void dma_memmove(char *src,char *dest,uint32_t len);
 void dma_memzero(char *dest,uint32_t len);
 void dma_memmove(char *src,char *dest,uint32_t len)
 {
+	if ((a>=b && a<(b+length))||(a<=b && (a+length)>b))
+		       flag=1;
+
+	else
+			   flag=0;
 	__disable_irq();
 	DMA_DCR0|=DMA_DCR_SINC_MASK;
 	DMA_DCR0|=DMA_DCR_DINC_MASK;  // increment source and destination every transfer
 	dma_init();
 	if (wordsend==1 && l!=0)
 	{
+       if (flag==0)
+	   {
+    	   DMA_DSR_BCR0|=k;            // total number of transfers
+    	   DMA_SAR0=(uint32_t)src;  // source address
+    	   DMA_DAR0=(uint32_t)dest;//dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   flag1=1;
+    	   __enable_irq();
+    	   while (flag1==1);
+    	   DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
+    	   DMA_DSR_BCR0 =l;
+    	   DMA_SAR0=(uint32_t)src+k;  // source address
+    	   DMA_DAR0=(uint32_t)dest+k;  //dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   NVIC_EnableIRQ(DMA0_IRQn);
+	   }
+       else
+       {
+    	   DMA_DSR_BCR0|=k;            // total number of transfers
+    	   DMA_SAR0=(uint32_t)src;  // source address
+    	   DMA_DAR0=(uint32_t)d;//dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   flag1=1;
+    	   __enable_irq();
+    	   while (flag1==1);
+    	   DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
+    	   DMA_DSR_BCR0 =l;
+    	   DMA_SAR0=(uint32_t)src+k;  // source address
+    	   DMA_DAR0=(uint32_t)d+k;  //dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   flag1=1;
+    	   NVIC_EnableIRQ(DMA0_IRQn);
+    	   while (flag1==1);
 
-	   DMA_DSR_BCR0|=k;            // total number of transfers
-	   DMA_SAR0=(uint32_t)src;  // source address
-	   DMA_DAR0=(uint32_t)dest;//dest address
-	   TPM0->SC|=0x08;
-	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
-	   flag1=1;
-	   __enable_irq();
-	  while (flag1==1);
-	   DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
-	   DMA_DSR_BCR0 =l;
-	   DMA_SAR0=(uint32_t)src+k;  // source address
-	   DMA_DAR0=(uint32_t)dest+k;  //dest address
-	   TPM0->SC|=0x08;
-       DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
-       NVIC_EnableIRQ(DMA0_IRQn);
-       
+    	   DMA_DSR_BCR0|=k;            // total number of transfers
+    	   DMA_SAR0=(uint32_t)d;  // source address
+    	   DMA_DAR0=(uint32_t)dest;//dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   flag1=1;
+    	   NVIC_EnableIRQ(DMA0_IRQn);
+    	   while (flag1==1);
+    	   DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
+    	   DMA_DSR_BCR0 =l;
+    	   DMA_SAR0=(uint32_t)d+k;  // source address
+    	   DMA_DAR0=(uint32_t)dest+k;  //dest address
+    	   TPM0->SC|=0x08;
+    	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+    	   NVIC_EnableIRQ(DMA0_IRQn);
+       }
+
 	}
 	else
 	{
-	    DMA_DSR_BCR0 =length;
-	   	DMA_SAR0=(uint32_t)src;  // source address
-	   	DMA_DAR0=(uint32_t)dest;  //dest address
+		if (flag==0)
+	    {
+			DMA_DSR_BCR0 =length;
+	        DMA_SAR0=(uint32_t)src;  // source address
+	        DMA_DAR0=(uint32_t)dest;  //dest address
+	    }
+	        else
+	        {
+	        	DMA_DSR_BCR0 =length;
+	            DMA_SAR0=(uint32_t)src;  // source address
+	            DMA_DAR0=(uint32_t)&d;  //dest address
+	            TPM0->SC|=0x08;
+	            DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	            flag1=1;
+	            __enable_irq();
+	            while (flag1==1);
+	            DMA_SAR0=(uint32_t)&d;  // source address
+	            DMA_DAR0=(uint32_t)dest;  //dest address
+	            TPM0->SC|=0x08;
+	            DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	            NVIC_EnableIRQ(DMA0_IRQn);
+	        }
 
 	   TPM0->SC|=0x08;
-	   __enable_irq();
 	    DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
 	    __enable_irq();
-	    
+
 	}
 }
 void dma_memzero(char *dest,uint32_t len)
@@ -106,7 +167,7 @@ void dma_memzero(char *dest,uint32_t len)
 		 TPM0->SC|=0x08;
 		 DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
 		 NVIC_EnableIRQ(DMA0_IRQn);
-		
+
 	 }
 	else
 	{
@@ -116,7 +177,7 @@ void dma_memzero(char *dest,uint32_t len)
 		TPM0->SC|=0x08;
 		DMA_DCR0|=DMA_DCR_START_MASK;
 		__enable_irq();
-		
+
 
 	}
 }
@@ -138,7 +199,7 @@ void dma_init()
 
 void DMA0_IRQHandler(void)
 {
-	
+
 	NVIC_DisableIRQ(DMA0_IRQn);
 	TPM0->SC=0;					//disable timer
 	time=3*((count*65536)+TPM0->CNT);	//time(in microseconds) 3us is the time required by TMP0 counter to increment by 1
@@ -167,13 +228,22 @@ int main(void)
 {
 	a=malloc(length*sizeof(char));
 	b=malloc(length*sizeof(char));
+	d=malloc(length*sizeof(char));
+	/*char arr[length];
+	char *a,*b;
+	 b=(arr+5);
+    a=arr;
+*/
+
+
+
 	k=length/4;
 	k=k*4;
 	l=length%4;
-	for(int i=0;i<length;i++)
+	/*for(int i=0;i<length;i++)
 	{
 		a[i]=i+1;
-	}
+	}*/
 	TIMER0_init();
 
 	dma_memmove(a,b,length);
@@ -187,5 +257,6 @@ int main(void)
 ////////////////////////////////////////////////////////////////////////////////
 // EOF
 ////////////////////////////////////////////////////////////////////////////////
+
 
 
