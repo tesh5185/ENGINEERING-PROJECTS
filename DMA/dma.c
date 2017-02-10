@@ -1,5 +1,5 @@
 
-/*
+ /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
  * All rights reserved.
  *
@@ -34,29 +34,73 @@
 //static int i = 0;
 void dma_init();
 void dma_use();
-char a[5000];
-char b[5000];
+#define length 1000
+#define wordsend 0
+char a[length];
+char b[length];
 char c[1]={0};
+char A[2]={1,2};
+char B[2];
+uint32_t k,l;
+
 int time=0,count=0;;
-void dma_memmove(char *src,char *dest,uint32_t length);
-void dma_memzero(char *dest,uint32_t length);
-void dma_memmove(char *src,char *dest,uint32_t length)
+void dma_memmove(char *src,char *dest,uint32_t len);
+void dma_memzero(char *dest,uint32_t len);
+void dma_memmove(char *src,char *dest,uint32_t len)
 {
+	DMA_DCR0|=DMA_DCR_SINC_MASK;
+	DMA_DCR0|=DMA_DCR_DINC_MASK;  // increment source and destination every transfer
 	dma_init();
-	DMA_DSR_BCR0|=length;            // total number of transfers
-	DMA_SAR0=(uint32_t)src;  // source address
-		DMA_DAR0=(uint32_t)dest;  //dest address
+	if (wordsend==1 && l!=0)
+	{
 
-		DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	   DMA_DSR_BCR0|=k;            // total number of transfers
+	   DMA_SAR0=(uint32_t)src;  // source address
+	   DMA_DAR0=(uint32_t)dest;  //dest address
+	   DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	   TPM0->SC=0;
+	   DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
 
+	   DMA_DSR_BCR0 =l;
+	   DMA_SAR0=(uint32_t)src+k;  // source address
+	   DMA_DAR0=(uint32_t)dest+k;  //dest address
+	   TPM0->SC|=0x08;
+       DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	}
+	else
+	{
+	    DMA_DSR_BCR0 =length;
+	   	DMA_SAR0=(uint32_t)src;  // source address
+	   	DMA_DAR0=(uint32_t)dest;  //dest address
+	    DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	}
 }
-void dma_memzero(char *dest,uint32_t length)
+void dma_memzero(char *dest,uint32_t len)
 {
-dma_init();
-DMA_DSR_BCR0|=length;
-DMA_SAR0=(uint32_t)&c;
-DMA_DAR0=(uint32_t)dest;
-DMA_DCR0|=DMA_DCR_START_MASK;
+	DMA_DCR0|=DMA_DCR_DINC_MASK;
+	dma_init();
+	if (wordsend==1 && l!=0)
+	{
+		DMA_DSR_BCR0|=k;
+		DMA_SAR0=(uint32_t)&c;
+		DMA_DAR0=(uint32_t)dest;
+		DMA_DCR0|=DMA_DCR_START_MASK;
+		TPM0->SC=0;
+		DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);
+
+		 DMA_DSR_BCR0 =l;
+	     DMA_SAR0=(uint32_t)&c;  // source address
+		 DMA_DAR0=(uint32_t)dest+k;  //dest address
+		 TPM0->SC|=0x08;
+		 DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
+	 }
+	else
+	{
+		DMA_DSR_BCR0|=length;
+		DMA_SAR0=(uint32_t)&c;
+		DMA_DAR0=(uint32_t)dest;
+		DMA_DCR0|=DMA_DCR_START_MASK;
+	}
 }
 void dma_init()
 {
@@ -65,14 +109,17 @@ void dma_init()
 	SIM->SCGC7|=SIM_SCGC7_DMA_MASK;  // Enable clock for dma
 	DMAMUX0_CHCFG0=0x39;       // give value for source while disabled
 	DMAMUX0_CHCFG0|=DMAMUX_CHCFG_ENBL_MASK;  // enable chanel 0
-	DMA_DCR0|=DMA_DCR_SINC_MASK;
-    DMA_DCR0|=DMA_DCR_DINC_MASK;  // increment source and destination every transfer
 
-    DMA_DCR0|=DMA_DCR_SSIZE(0)|DMA_DCR_DSIZE(0);  // size of src and dest bus cycle
-	/*DMA_DSR_BCR0|=10;            // total number of transfers
-	DMA_SAR0=(uint32_t)&a;  // source address
-		DMA_DAR0=(uint32_t)&b;  //dest address
-*/
+    if (wordsend==0)
+         DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);  // size of src and dest bus cycle
+    else
+    	 DMA_DCR0|=DMA_DCR_SSIZE(0)|DMA_DCR_DSIZE(0);
+
+}
+
+void DMA_IRQHandler()
+{
+	
 }
 void TIMER0_init(){
 		__disable_irq();
@@ -105,10 +152,13 @@ int main(void)
     /* Never leave main */
 //dma_init();
 //dma_memmove(a,b,10);
+	k=(uint32_t)length/4;
+	k=k*4;
+	l=length%4;
 	TIMER0_init();
 	TPM0->SC|=0x08;				//enable timer
-	dma_memmove(a,b,5000);
-	//dma_memzero(b,5000);
+	//dma_memmove(a,b,length);
+	dma_memzero(b,length);
 	TPM0->SC=0;					//disable timer
 	   time=3*((count*65536)+TPM0->CNT);	//time(in microseconds) 3us is the time required by TMP0 counter to increment by 1
 	return 0;
@@ -117,4 +167,5 @@ int main(void)
 ////////////////////////////////////////////////////////////////////////////////
 // EOF
 ////////////////////////////////////////////////////////////////////////////////
+
 
