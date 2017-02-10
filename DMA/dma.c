@@ -1,5 +1,5 @@
 
- /*
+/*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
  * All rights reserved.
  *
@@ -28,22 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "MKL25Z4.h"
-#include <stdlib.h>
-void dma_init();
-void dma_use();
-#define length 10
-#define wordsend 0
-char *a,*b,*d;
-
-char c[1]={0};
-
-uint32_t k,l;
-int flag,flag1;
-int time=0,count=0;
-void dma_memmove(char *src,char *dest,uint32_t len);
-void dma_memzero(char *dest,uint32_t len);
+#include "dmac.h"
 void dma_memmove(char *src,char *dest,uint32_t len)
 {
 	if ((a>=b && a<(b+length))||(a<=b && (a+length)>b))
@@ -257,6 +242,5 @@ int main(void)
 ////////////////////////////////////////////////////////////////////////////////
 // EOF
 ////////////////////////////////////////////////////////////////////////////////
-
 
 
