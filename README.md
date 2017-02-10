@@ -1,2 +1,4 @@
-# ENGINEERING-PROJECTS
-first semester firmware and software projects.
+This project consists of 3 parts:
+The first part consists of a DMA to perform certain operations for memory functions such as memmove and memzero. We do this for byte and word transfer and we do the same for CPU operations as shown in previous projects and calculate the time required for each operation using the profiler. Memory overlap conditions and word transfer for non-divisible number of bytes are taken into account.
+For this part, we design a message interface where we send commands to other devices via UART where we define the command via an ENUM and the define the contents of the message in a structure and the length depends on the message.
+In the last part, we explore SPI communication of the FRDM-KL25z and the BeagleBoneBlack boards with the Nordic NRFL01+ board for transmitting and receiving data.
