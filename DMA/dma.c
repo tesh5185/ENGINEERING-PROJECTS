@@ -36,7 +36,9 @@ void dma_init();
 void dma_use();
 char a[10]={1,2,3,4,5,6,7,8,5,5};
 char b[10]={5,1,2,3,4,6,3,6,4,4};
+char c[1]={0};
 void dma_memmove(char *src,char *dest,char length);
+void dma_memzero(char *dest,char length);
 void dma_memmove(char *src,char *dest,char length)
 {
 	dma_init();
@@ -47,6 +49,14 @@ void dma_memmove(char *src,char *dest,char length)
 		DMA_DCR0|=DMA_DCR_START_MASK; // start transfer
 
 }
+void dma_memzero(char *dest,char length)
+{
+dma_init();
+DMA_DSR_BCR0|=length;
+DMA_SAR0=(uint32_t)&c;
+DMA_DAR0=(uint32_t)dest;
+DMA_DCR0|=DMA_DCR_START_MASK;
+}
 void dma_init()
 {
 
@@ -55,7 +65,7 @@ void dma_init()
 	DMAMUX0_CHCFG0=0x39;       // give value for source while disabled
 	DMAMUX0_CHCFG0|=DMAMUX_CHCFG_ENBL_MASK;  // enable chanel 0
 
-    DMA_DCR0|=DMA_DCR_SINC_MASK|DMA_DCR_DINC_MASK;  // increment source and destination every transfer
+    DMA_DCR0|=DMA_DCR_DINC_MASK;  // increment source and destination every transfer
 
     DMA_DCR0|=DMA_DCR_SSIZE(1)|DMA_DCR_DSIZE(1);  // size of src and dest bus cycle
 	/*DMA_DSR_BCR0|=10;            // total number of transfers
@@ -74,11 +84,12 @@ int main(void)
         i++;
     }
     /* Never leave main */
-dma_memmove(a,b,10);
-	
+//dma_init();
+//dma_memmove(a,b,10);
+	dma_memzero(b,10);
 	return 0;
 
 }
 ////////////////////////////////////////////////////////////////////////////////
 // EOF
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
