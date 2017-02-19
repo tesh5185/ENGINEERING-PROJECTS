@@ -26,10 +26,10 @@
 #include "em_int.h"
 
 unsigned int sleep_block_counter[5];
-#define SDAport gpioPortC
-#define SDApin  4
-#define SCLport gpioPortC
-#define SCLpin  5
+#define SDAport gpioPortD
+#define SDApin  6
+#define SCLport gpioPortD
+#define SCLpin  7
 #define LEDpin 2
 #define LEDport gpioPortE
 #define intpin 3
@@ -110,17 +110,17 @@ void powerup(void)
 		 TIMER_Enable(TIMER0,false);
 }
 
-void i2c1_setup(void)
+void I2C0_setup(void)
 {
 	CMU_ClockEnable(cmuClock_HFPER,true);
 	CMU_ClockEnable(cmuClock_CORELE,true);
 	CMU_ClockEnable(cmuClock_GPIO,true);
-	CMU_ClockEnable(cmuClock_I2C1,true);
+	CMU_ClockEnable(cmuClock_I2C0,true);
 	GPIO_PinModeSet(SDAport,SCLpin, gpioModeWiredAnd, 1);
 	GPIO_PinModeSet(SDAport,SDApin, gpioModeWiredAnd, 1);
-    I2C1->ROUTE= I2C_ROUTE_SDAPEN |
+    I2C0->ROUTE= I2C_ROUTE_SDAPEN |
                  I2C_ROUTE_SCLPEN |
-                 (0<< _I2C_ROUTE_LOCATION_SHIFT);
+                 (1<< _I2C_ROUTE_LOCATION_SHIFT);
 
     I2C_Init_TypeDef i2cInit = {
     		  .enable = true,                    /* Enable when init done */
@@ -131,12 +131,12 @@ void i2c1_setup(void)
     		};
 
 
-    I2C_Init(I2C1, &i2cInit);
-    int flag = I2C1->IF;
-      I2C1->IFC=flag;
-   if(I2C1->STATE & I2C_STATE_BUSY)
+    I2C_Init(I2C0, &i2cInit);
+    int flag = I2C0->IF;
+      I2C0->IFC=flag;
+   if(I2C0->STATE & I2C_STATE_BUSY)
    {
-	   I2C1->CMD=I2C_CMD_ABORT;
+	   I2C0->CMD=I2C_CMD_ABORT;
    }
    for(int i=0;i<=9;i++)
    {
@@ -144,56 +144,56 @@ void i2c1_setup(void)
 
 	       GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 1);
    }
-  // I2C1->IEN|=I2C_IEN_NACK;
-   //I2C1->IEN|=I2C_IEN_ACK;
-   //I2C1->IEN|=I2C_IEN_RXDATAV;
-  // NVIC_ClearPendingIRQ(I2C1_IRQn);
-   //NVIC_EnableIRQ(I2C1_IRQn);
+  // I2C0->IEN|=I2C_IEN_NACK;
+   //I2C0->IEN|=I2C_IEN_ACK;
+   //I2C0->IEN|=I2C_IEN_RXDATAV;
+  // NVIC_ClearPendingIRQ(I2C0_IRQn);
+   //NVIC_EnableIRQ(I2C0_IRQn);
 }
 void write(int address,int value)
 {
-	 I2C1->CMD  |= I2C_CMD_START;
-	 I2C1->TXDATA =SLAVE_ADDRESS|writebit;     //write slave device address with write bit
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
+	 I2C0->CMD  |= I2C_CMD_START;
+	 I2C0->TXDATA =SLAVE_ADDRESS|writebit;     //write slave device address with write bit
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
 
-	 I2C1->TXDATA = address;					// write register address
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
+	 I2C0->TXDATA = address;					// write register address
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
 
-	 I2C1->TXDATA = value;						//value to be written
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
-	 I2C1->CMD  |= I2C_CMD_STOP;
+	 I2C0->TXDATA = value;						//value to be written
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
+	 I2C0->CMD  |= I2C_CMD_STOP;
 
 }
 int read(int address)
 {
-	 I2C1->CMD  |= I2C_CMD_START;						//write slave device address with write bit
-	 I2C1->TXDATA =SLAVE_ADDRESS|writebit;
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
+	 I2C0->CMD  |= I2C_CMD_START;						//write slave device address with write bit
+	 I2C0->TXDATA =SLAVE_ADDRESS|writebit;
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
 
-	 I2C1->TXDATA = address;							// write register address
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
+	 I2C0->TXDATA = address;							// write register address
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
 
 
-	 I2C1->CMD  |= I2C_CMD_START;
-	 I2C1->TXDATA =SLAVE_ADDRESS|readbit;// write slave address with read bit
-	 while((I2C1->IF & I2C_IF_ACK) == 0);
-	 flag1 = I2C1->IF;
-	 I2C1->IFC=flag1;
+	 I2C0->CMD  |= I2C_CMD_START;
+	 I2C0->TXDATA =SLAVE_ADDRESS|readbit;// write slave address with read bit
+	 while((I2C0->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C0->IF;
+	 I2C0->IFC=flag1;
 
-	 while(!(I2C1->STATUS & I2C_STATUS_RXDATAV));
-	 data=I2C1->RXDATA;
-	 I2C1->CMD |= I2C_CMD_NACK;
-	 I2C1->CMD  |= I2C_CMD_STOP;
+	 while(!(I2C0->STATUS & I2C_STATUS_RXDATAV));
+	 data=I2C0->RXDATA;
+	 I2C0->CMD |= I2C_CMD_NACK;
+	 I2C0->CMD  |= I2C_CMD_STOP;
      return data;
 
 
@@ -259,7 +259,7 @@ int main(void)
   CHIP_Init();
   //blockSleepMode(3);
   //EMU_EnterEM3(true);
-  i2c1_setup();
+  I2C0_setup();
   GPIO2_setup();
   powerup();
 
