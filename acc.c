@@ -56,7 +56,16 @@ int data,flag1,dat,date,dates;
 #else
 #define SLAVE_ADDRESS 0x1C<<1
 #endif
-
+typedef enum address_t{
+	CTRL_REG1=0x2A,
+	CTRL_REG2=0x2B,
+	DEBOUNCE_CNT=0x18,
+	TRANSIENT_THS=0x1F,
+	TRANSIENT_COUNT=0x20,
+	CTRL_REG4=0x2D,
+	CTRL_REG5=0x2E,
+	TRANSIENT_SRC=0x1E
+}address;
 
 void leuart0_setup(void)
 {
@@ -254,13 +263,21 @@ int read(int address)
 }
 void work()
 {
-	write(0x2A,0x18);
+	/*write(0x2A,0x18);
 	write(0x2B,0x18);
 	write(0x1D,0x12);
 	write(0x1F,0x0F);
 	write(0x20,0x05);
 	write(0x2D,0x20);
-	write(0x2E,0x20);
+	write(0x2E,0x20);*/
+	write(CTRL_REG1,0x18);
+		write(CTRL_REG2,0x18);
+		write(DEBOUNCE_CNT,0x12);
+		write(TRANSIENT_THS,0x0F);
+		write(TRANSIENT_COUNT,0x05);
+		write(CTRL_REG4,0x20);
+		write(CTRL_REG5,0x20);
+
 
 
 //	dat=read(0x1D);
@@ -298,7 +315,7 @@ void GPIO_ODD_IRQHandler(void)
   //if(date==0x20)
   //{
   NVIC_EnableIRQ(LEUART0_IRQn);
-  dates= read(0x1E);
+  dates= read(TRANSIENT_SRC);
 	 GPIO_PinOutToggle(LEDport,LEDpin);
   //}
  }
