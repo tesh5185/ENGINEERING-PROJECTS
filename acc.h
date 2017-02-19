@@ -15,17 +15,14 @@
 #include "em_leuart.h"
 unsigned int sleep_block_counter[5];
 
-#define SDAport gpioPortD
-#define SDApin  6
-#define SCLport gpioPortD
-#define SCLpin  7
+#define accSDAport gpioPortD
+#define accSDApin  6
+#define accSCLport gpioPortD
+#define accSCLpin  7
 #define LEDpin 2
 #define LEDport gpioPortE
-#define intpin 3
-#define intport gpioPortD
-#define powerport gpioPortD
-#define powerpin 0
-#define LETIMER0_ENERGY_MODE EM2
+#define accintpin 6
+#define accintport gpioPortC
 #define leuaert_baud 9600
 #define leuart_databits  leuartDatabits8
 #define leuartstopbits leuartStopbits1
@@ -56,9 +53,9 @@ typedef enum address_t{
 }address;
 void leuart0_setup(void);
 void I2C0_setup(void);
-void write(int address,int value);
-void GPIO2_setup();
-void work();
-int read(int address);
-void leuart0_setup(void);
+void writeacc(int address,int value);
+void GPIOacc_setup();
+void workacc();
+int readacc(int address);
+
 #endif
