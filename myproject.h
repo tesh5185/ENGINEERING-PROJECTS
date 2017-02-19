@@ -48,7 +48,7 @@ unsigned int sleep_block_counter[5];
 #define DMA_CHANNEL_ADC       0
 #define lowertemp 15
 #define uppertemp 35
-#define DMAuse 1
+#define DMAuse
 #define ADCprescale 1400000
 #define LIGHTSENSE_EXCITE_PORT gpioPortD
 #define LIGHTSENSE_EXCITE_PIN 6
@@ -65,7 +65,7 @@ unsigned int sleep_block_counter[5];
 #define ADC_rep true
 #define ADC_warmup adcWarmupNormal
 
-#define i2cuse  1
+#define i2cuse
 volatile bool transferActive;
 volatile uint16_t ramBufferAdcData[ADCSAMPLES];
 #define ADCSAMPLESPERSEC              100000
@@ -74,32 +74,34 @@ volatile uint16_t ramBufferAdcData[ADCSAMPLES];
 #define SDAport gpioPortC
 #define SDApin  4
 #define SCLpin  5
-/*#define LEDpin 2
-#define LEDport gpioPortE*/
 #define intpin 1
 #define intport gpioPortD
 #define powerport gpioPortD
 #define powerpin 0
-#define slave_address 0x39
-#define writeslave  0
-#define readslave   1
-#define controladd 0x80
-#define wordwrite 0x20
-#define control  0x03
-#define timing   0x01
-#define ThreshLowLow 0x0f
-#define ThreshLowHigh 0x01
-#define ThreshHighLow  0x00
-#define ThreshHighHigh 0x05
-#define Threshlow  0x010f
-#define Threshlower 0x000f
-#define ThreshHigh  0x0500
-#define ThreshHigher  0x0800
-#define interrupt  0x14
-#define data0low_add  0x8C
-#define data0high_add  0x8D
-#define data1low_add  0x8E
-#define data1high_add  0x8F
+typedef enum TSL_add_t{
+	slave_address =0x39,
+	writeslave =0,
+	readslave = 1,
+	controladd=0x80,
+	wordwrite =0x20,
+	control =0x03,
+	timing =0x01,
+	ThreshLowLow =0x0f,
+	ThreshLowHigh=0x01,
+	ThreshHighLow=0x00,
+	ThreshHighHigh=0x05,
+	Threshlow = 0x010f,
+	Threshlower =0x000f,
+	ThreshHigh = 0x0500,
+	ThreshHigher=0x0800,
+	interrupt = 0x14,
+	data0low_add= 0x8C,
+	data0high_add =0x8D,
+	data1low_add =0x8E,
+	data1high_add =0x8F
+
+}TSL_add;
+
 int ab,cd,ef,gh;
 void TIMER0_setup(void);
 void TIMER1_setup(void);
@@ -114,17 +116,17 @@ void CMU_setup(void);
 void GPIO_setup(void);
 void LED_state(bool state);
 void finaltemp();
-float convertToCelcius(int32_t adcSample);
-void i2c1_setup(void);
-void work(void);
-void write(int z);
-void read(int y);
-void GPIO2_setup(void);
-void ClearTSLInterrupt(void);
-void leuart0_setup(void);
-void powerup(void);
-DMA_CB_TypeDef cb;
-void transferComplete(unsigned int channel, bool primary, void *user);
+float convertToCelcius(int32_t adcSample); // consverts the temperature to celciu
+void i2c1_setup(void);  // gives clock to the i2c and initial setup on board
+void work(void);// carries out all the read and write functions
+void write(int z); // function to write to a particular address, takes data or address
+void read(int y); // reads data from a particular register
+void GPIO2_setup(void); //sets up the GPIO pins for the I2C1
+void ClearTSLInterrupt(void); // clear interrupts
+void leuart0_setup(void); //initialize the LEUART
+void powerup(void);  // provide a certain amount of delay for powerpin to stabilise
+DMA_CB_TypeDef cb; // callback
+void transferComplete(unsigned int channel, bool primary, void *user);//callback function
 int intflags;
 int countADC=0;
 float z;
@@ -141,7 +143,9 @@ int temp1,temp10,temp11,temp12,temp13;
 #define LEUARTpin 4
 #define LEDSetCMD 65
 #define LEDResetCMD 66
-#define cirbuf 1
-
+#define cirbuf
+struct CirBuf cb1;
+uint8_t *rd;
+uint8_t read1[1];
 
 #endif

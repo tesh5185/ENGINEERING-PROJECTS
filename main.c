@@ -23,9 +23,7 @@
 
 #include "myproject.h"
 
-struct CirBuf cb1;
-uint8_t *rd;
-uint8_t read1[1];
+
 void blockSleepMode(unsigned int sleepstate) //block sleep mode
 {
 	INT_Disable();
@@ -47,19 +45,24 @@ void unblockSleepMode(unsigned int sleepstate) // unblock sleep mode
 void sleep(void) //sleep routine
 {
 	if(sleep_block_counter[0]>0)
-	{ return;
+	{
+		return;
 	}
 	else if(sleep_block_counter[1]>0)
-	{ EMU_EnterEM1();
+	{
+		EMU_EnterEM1();
 	}
 	else if(sleep_block_counter[2]>0)
-	{ EMU_EnterEM2(true);
+	{
+		EMU_EnterEM2(true);
 	}
 	else if(sleep_block_counter[3]>0)
-	{ EMU_EnterEM3(true);
+	{
+		EMU_EnterEM3(true);
 	}
 	else
-	{EMU_EnterEM4();
+	{
+		EMU_EnterEM4();
 	}
 
 }
@@ -75,15 +78,14 @@ void GPIO_setup(void)
 void CMU_setup(void)
 {
 
-	   CMU_ClockEnable(cmuClock_HFPER,true);// high freq clock
-		CMU_ClockEnable(cmuClock_LETIMER0, true);
-	    CMU_ClockEnable(cmuClock_GPIO, true); // give clock to peripherals
-
-	    CMU_ClockEnable(cmuClock_TIMER0,true);
-	    CMU_ClockEnable(cmuClock_TIMER1,true);
-	    CMU_ClockEnable(cmuClock_CORELE, true);
-	    CMU_ClockEnable(cmuClock_DMA, true);
-        CMU_ClockEnable(cmuClock_ADC0, true);
+	 CMU_ClockEnable(cmuClock_HFPER,true);// high freq clock
+	 CMU_ClockEnable(cmuClock_LETIMER0, true);
+	 CMU_ClockEnable(cmuClock_GPIO, true); // give clock to peripherals
+	 CMU_ClockEnable(cmuClock_TIMER0,true);
+	 CMU_ClockEnable(cmuClock_TIMER1,true);
+	 CMU_ClockEnable(cmuClock_CORELE, true);
+	 CMU_ClockEnable(cmuClock_DMA, true);
+     CMU_ClockEnable(cmuClock_ADC0, true);
 
 
 
@@ -95,7 +97,7 @@ void CMU_setup(void)
             TIMER0_setup();
 	        TIMER1_setup();
 
-	        CMU_OscillatorEnable(cmuOsc_LFXO,true,true);
+	        CMU_OscillatorEnable(cmuOsc_LFXO,true,true);	//enable low frequency oscillator
 	        CMU_ClockSelectSet(cmuClock_LFA, cmuSelect_LFXO);
             CMU_ClockEnable(cmuClock_CORELE, true);
 
@@ -116,7 +118,7 @@ void CMU_setup(void)
 
 	        CMU_ClockSelectSet(cmuClock_LFA, cmuSelect_ULFRCO);
 	        CMU_ClockEnable(cmuClock_TIMER0,false);
-	       	    CMU_ClockEnable(cmuClock_TIMER1,false);
+	       	CMU_ClockEnable(cmuClock_TIMER1,false);
 
             }
          }
@@ -225,26 +227,22 @@ void LETIMER0_setup(void)
 
 void LETIMER0_IRQHandler(void)
 {
-	/*INT_Disable();
-	intflags=LETIMER_IntGet(LETIMER0);
-	LETIMER_IntClear(LETIMER0,intflags);
-	INT_Enable();*/
-
 	int intflags = LETIMER0->IF;
 	LETIMER0->IFC= intflags;
 	if ((intflags & LETIMER_IF_COMP1) != 0)
 	{    LETIMER0->IFC= intflags;
-		if (i2cuse==0)  //check if i2c is used
-		{
+		#ifndef i2cuse //check if i2c is used
+
 			ACMP0->CTRL|=ACMP_CTRL_EN; // enable acmp
 		    while (!(ACMP0->STATUS & ACMP_STATUS_ACMPACT)) ;// wait for warmup
 	        GPIO_PinOutSet(LIGHTSENSE_EXCITE_PORT, LIGHTSENSE_EXCITE_PIN);
-	    }
+		#endif
 	}
 	else if((intflags & LETIMER_IF_UF) != 0)
-	{  LETIMER0->IFC= intflags;
-		if (i2cuse==0)
-	   {
+	{
+		LETIMER0->IFC= intflags;
+	#ifndef i2cuse
+
 		  uint32_t x=ACMP0->STATUS;
           if((x & 0x00000002) == (0x00000002))//check output of acmp0
           {
@@ -262,16 +260,16 @@ void LETIMER0_IRQHandler(void)
 	    ACMP0->CTRL &= ~ACMP_CTRL_EN;                             // disable acmp
 	    ADC_Start(ADC0,adcStartSingle);              // start single conversion
 	    blockSleepMode(1);                     //enter blocksleepmode1
-	   }
-	   else
-	   { // blockSleepMode(EM1);
+	#endif
+	#ifdef i2cuse
+
 		   if(load_period==0)
 	      {
-	      i2c1_setup(); //i2c setup
-	      GPIO2_setup();// gpio pins for i2c
-	      powerup();  //power for stabilization
-	      work();
-	      load_period++;  //increment period
+			  i2c1_setup(); //i2c setup
+			  GPIO2_setup();// gpio pins for i2c
+			  powerup();  //power for stabilization
+			  work();
+			  load_period++;  //increment period
 	      }
 	      else if (load_period==1)
 	      {
@@ -282,22 +280,20 @@ void LETIMER0_IRQHandler(void)
 	      {
 
 	    	  GPIO->IFC = GPIO->IF; //clear flags
-	    	  //GPIO_PinModeSet(SDAport,SCLpin, gpioModeDisabled, 1); //disable SCL pin
-	    	  	//GPIO_PinModeSet(SDAport,SDApin, gpioModeDisabled, 1); //disable SDA pin
-	    	  	GPIO_ExtIntConfig( intport, intpin, 1, false, true, false );//disable interrupts
+	    	  GPIO_ExtIntConfig( intport, intpin, 1, false, true, false );//disable interrupts
 	    	  GPIO_PinOutClear(powerport, powerpin); //clear power pin
 	    	  load_period=0;
 	    	  unblockSleepMode(EM1);  // unblock em1
 	    	  blockSleepMode(EM3);    //block em3 for slave
 	      }
 
-	   }
+	#endif
 		 ADC_Start(ADC0,adcStartSingle);              // start single conversion
-			    blockSleepMode(1);                     //enter blocksleepmode1
+		 blockSleepMode(1);                     //enter blocksleepmode1
 
-	    if (DMAuse == 1)  // activate dma
-			{
-		      DMA_ActivateBasic(DMA_CHANNEL_ADC, //adc channel
+	#ifdef DMAuse  // activate dma
+
+	DMA_ActivateBasic(DMA_CHANNEL_ADC, //adc channel
 
 
 			                    true,
@@ -309,26 +305,18 @@ void LETIMER0_IRQHandler(void)
 			                    (void *)&(ADC0->SINGLEDATA), // single data enabled
 
 			                    ADCSAMPLES - 1);
-			}
-	    else
-	    {
-	    	NVIC_ClearPendingIRQ(ADC0_IRQn);
-	    	  NVIC_EnableIRQ(ADC0_IRQn);
-	    	  ADC0->IEN |= 0x01;  // enable interrupts
-	    	  ADC0->SINGLECTRL &= ~ADC_SINGLECTRL_REP;// repeat mode off
-	    }
-
-
-
-       /*ADC_Start(ADC0,adcStartSingle); //go to IRQ handler after conversion
-       blockSleepMode(1);*/
-
-
-  }
+			#endif
+			#ifndef DMAuse
+		    NVIC_ClearPendingIRQ(ADC0_IRQn);
+	    	NVIC_EnableIRQ(ADC0_IRQn);
+	    	ADC0->IEN |= 0x01;  // enable interrupts
+	    	ADC0->SINGLECTRL &= ~ADC_SINGLECTRL_REP;// repeat mode off
+			#endif
+	}
 }
 
 void ADC0_IRQHandler(void)
-{// INT_Disable();
+{
 	int flagADC= ADC0->IF;
     ADC0->IFC=flagADC;  //disable flags
 
@@ -336,7 +324,6 @@ void ADC0_IRQHandler(void)
     {
        ramBufferAdcData[countADC] = ADC_DataSingleGet(ADC0); // store in buffer
        countADC+=1;
-      // ADC0->CMD=0x2;
 
     }
 	else
@@ -345,9 +332,7 @@ void ADC0_IRQHandler(void)
 		unblockSleepMode(1);
 		countADC=0;
 		finaltemp(); // give final temp
-		//CMU_ClockEnable(cmuClock_ADC0, false);
 	}
-   // INT_Enable();
 }
 long LETIMERCAL_setup()
 {
@@ -374,13 +359,10 @@ long LETIMERCAL_setup()
     LETIMER_Enable(LETIMER0,true);
     TIMER_Enable(TIMER0,true);// enable timer 0
     TIMER_Enable(TIMER1,true);// enable timer 1
-
-	while(LETIMER0->CNT != 0);// poll underflow flag
+    while(LETIMER0->CNT != 0);// poll underflow flag
 	LETIMER_Enable(LETIMER0,false);
-
 	TIMER_Enable(TIMER0,false);// disable timers
     TIMER_Enable(TIMER1,false);
-
     long x = TIMER0->CNT | TIMER1->CNT << 16;// no. of counts in time
     return x;
 
@@ -406,26 +388,17 @@ long LETIMERCAL1_setup()
     LETIMER0->CNT=comp0_init;
 	LETIMER_Init(LETIMER0, &letimerInit1);
 	while(LETIMER0->SYNCBUSY !=0);
-
-
 	TIMER0->CNT=0;
 	TIMER1->CNT=0;
 	LETIMER_CompareSet(LETIMER0,0,comp0_init);
 	LETIMER_Enable(LETIMER0,true);
 	TIMER_Enable(TIMER0,true);
 	TIMER_Enable(TIMER1,true);
-
-		//flags = LETIMER0->IF;
-		//LETIMER0->IFC = flags;
 	while(LETIMER0->CNT != 0);
-
 	TIMER_Enable(TIMER0,false);
     TIMER_Enable(TIMER1,false);
-
     long y = TIMER0->CNT | TIMER1->CNT <<16;
-
     return y;  //no. of counts
-
 }
 
 void TIMER0_setup()
@@ -468,13 +441,13 @@ void TIMER1_setup()
 void LED_state(bool state)
 {
 	if(state)
-        {GPIO_PinOutSet(LEDport,LEDpin);
-	c=LEDSetCMD;
+        {
+			GPIO_PinOutSet(LEDport,LEDpin);
 
-	}
-     else
-     { GPIO_PinOutClear(LEDport,LEDpin);
-     c=LEDResetCMD;
+        }
+     	else
+     	{
+     		GPIO_PinOutClear(LEDport,LEDpin);
 }
 
 }
@@ -549,22 +522,13 @@ void setupAdc(void)
 {
 
   ADC_Init_TypeDef        adcInit       = ADC_INIT_DEFAULT;
-
   ADC_InitSingle_TypeDef  adcInitSingle = ADC_INITSINGLE_DEFAULT;
-
-
   adcInit.prescale = ADC_PrescaleCalc(ADCprescale, 0); //calculate and set prescaled adc clock
   ADC_Init(ADC0, &adcInit);
-
-
-
   adcInitSingle.input     =  adcinput;  /* temperature sensor */
   adcInitSingle.acqTime=2;
-
   ADC_InitSingle(ADC0, &adcInitSingle);
   ADC0->SINGLECTRL |=0x01;
-
-
 }
 
 void transferComplete(unsigned int channel, bool primary, void *user)
@@ -593,11 +557,7 @@ void finaltemp()
     	average += ramBufferAdcData[i];
     }
     average=average/ADCSAMPLES;
-
-    //temperature= average%10;
-    //temperature1=average/10;
     float temp = convertToCelcius(average);
-   //float temp = -1.63;
     if(temp<0)   //check if temperature negative
 	{
 	   temp10=67;
@@ -611,22 +571,14 @@ void finaltemp()
      temp13=temp1/10;
      temp12=temp13%10;
      temp13=temp13/10;
-     INT_Disable();
-     //CBWrite(&cb1,84);
-     CBWrite(&cb1,temp10);
+     INT_Disable();			// make the instructins atomic
+     CBWrite(&cb1,temp10);	//write to buffer
      CBWrite(&cb1,temp11);
      CBWrite(&cb1,temp12);
      CBWrite(&cb1,temp13);
      INT_Enable();
-    // CBWrite(&cb1,c);
      NVIC_EnableIRQ(LEUART0_IRQn);
-   /*  if (temp <lowertemp|| temp>uppertemp)
-    	GPIO_PinOutSet(LEDport,LEDpin2);
-     else
-    	GPIO_PinOutClear(LEDport,LEDpin2);*/
 }
-
-//disclaimer: I admit Ive taken this routine from simplicity studio
 float convertToCelcius(int32_t adcSample)
 {
 	float temp;
@@ -652,18 +604,18 @@ void GPIO_ODD_IRQHandler(void)
   int flag3 = I2C1->IF;
   I2C1->IFC=flag3;
   write(data0low_add);
-  read(slave_address<<1|readslave);
-  int r= 256*gh+ef;
-  int s=256*cd+ab;
+  read(slave_address<<1|readslave);  //read data
+  int r= 256*gh+ef;    // lower threshold
+  int s=256*cd+ab;		// higher threshold
   if (r<Threshlower)   //compare
-	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 1);
+	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 1);  //highest intensity for LED
    else if(r<Threshlow)
-	  GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPullDrive, 1);
+	  GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPullDrive, 1);//moderately high intensity
 
   if (s>ThreshHigher)
-	  GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0);
+	  GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0); // LED off
   else if(s>ThreshHigh)
-	  GPIO_PinModeSet(LEDport, LEDpin, gpioDriveModeLow, 1);
+	  GPIO_PinModeSet(LEDport, LEDpin, gpioDriveModeLow, 1); // Low intensity
 }
 
 void GPIO_EVEN_IRQHandler(void)
@@ -674,22 +626,22 @@ void GPIO_EVEN_IRQHandler(void)
   dates= readacc(TRANSIENT_SRC);
 
   GPIO_PinOutToggle(LEDport,LEDpin2);
-  if (cirbuf==1)
-  {
+	#ifdef cirbuf
+
 	  INT_Disable();
 	  CBWrite(&cb1,65);
 	  CBWrite(&cb1,76);
 	  CBWrite(&cb1,82);
 	  CBWrite(&cb1,84);
 	  INT_Enable();
-  }
-  else
-  {
+#endif
+#ifndef cirbuf
+
 	  temp10=65;
 	  temp10=76;
 	  temp10=82;
 	  temp10=84;
-  }
+#endif
   NVIC_EnableIRQ(LEUART0_IRQn);
  }
 
@@ -754,8 +706,7 @@ void write(int z)
 
 }
 void work(void)
-{   //ClearTSLInterrupt();
-    //int l=slave_address<<1|writeslave;
+{
 	I2C1->TXDATA =slave_address<<1|writeslave;
     I2C1->CMD  |= I2C_CMD_START;
     //I2C1->TXDATA =slave_address<<1|writeslave;
@@ -789,20 +740,19 @@ void read(int y)
 {
 	I2C1->CMD  |= I2C_CMD_START;
     I2C1->TXDATA =y;
-    //I2C1->CMD |= I2C_CMD_ACK;
     while(!(I2C1->IF & I2C_IF_RXDATAV));
     ab = I2C1->RXDATA;
     I2C1->CMD |= I2C_CMD_ACK;
-     while(!(I2C1->IF & I2C_IF_RXDATAV));
-     cd = I2C1->RXDATA;
-     I2C1->CMD |= I2C_CMD_ACK;
-     while(!(I2C1->IF & I2C_IF_RXDATAV));
-     ef = I2C1->RXDATA;
-     I2C1->CMD |= I2C_CMD_ACK;
-     while(!(I2C1->IF & I2C_IF_RXDATAV));
-     gh = I2C1->RXDATA;
-     I2C1->CMD |= I2C_CMD_NACK;
-     I2C1->CMD  |= I2C_CMD_STOP;
+    while(!(I2C1->IF & I2C_IF_RXDATAV));
+    cd = I2C1->RXDATA;
+    I2C1->CMD |= I2C_CMD_ACK;
+    while(!(I2C1->IF & I2C_IF_RXDATAV));
+    ef = I2C1->RXDATA;
+    I2C1->CMD |= I2C_CMD_ACK;
+    while(!(I2C1->IF & I2C_IF_RXDATAV));
+    gh = I2C1->RXDATA;
+    I2C1->CMD |= I2C_CMD_NACK;
+    I2C1->CMD  |= I2C_CMD_STOP;
 	}
 void ClearTSLInterrupt(void)
 
@@ -888,7 +838,6 @@ void printBuf(struct CirBuf *cb){
 //gets the length of data in the buffer
 uint16_t CBLengthData(struct CirBuf *cb){
 	uint8_t lengthData = ((cb->write - cb->read) & (cb->size - 1));
-	//printf("length of data in buffer is: %d\n", lengthData );
 	return lengthData;
 }
 
@@ -1013,58 +962,62 @@ void LEUART0_IRQHandler(void)
 	LEUART_IntClear(LEUART0, leuartif);
     LEUART0->CTRL|=LEUART_CTRL_LOOPBK;  //enable loopback for verification
     LEUART0->CMD|=LEUART_CMD_RXEN;    //enable reception
-if(cirbuf==1)
-{
-if (ts==0)								//send data
-	{
-	CBRead(&cb1,rd);
-     LEUART0->TXDATA=read1[0];
-	}
-if (ts==1)
-	{
-	CBRead(&cb1,rd);
-	 LEUART0->TXDATA=read1[0];
-	}
-if (ts==2)
-	{CBRead(&cb1,rd);
-	 LEUART0->TXDATA=read1[0];
-	}
-if(ts==3)
-	{CBRead(&cb1,rd);
-	LEUART0->TXDATA=read1[0];
-	}
-}
-else
-{
-if (ts==0)								//send data
-	{
-	CBRead(&cb1,rd);
-     LEUART0->TXDATA=temp10;
-	}
-if (ts==1)
-	{
-	CBRead(&cb1,rd);
-	 LEUART0->TXDATA=temp11;
-	}
-if (ts==2)
-	{CBRead(&cb1,rd);
-	 LEUART0->TXDATA=temp12;
-	}
-if(ts==3)
-	{CBRead(&cb1,rd);
-	LEUART0->TXDATA=temp13;
-	}
-}
-while((LEUART0->IF & LEUART_IF_TXC)==0);
-//unblockSleepMode(2);
-ts++;
-if (ts==4)
- {
-	NVIC_DisableIRQ(LEUART0_IRQn);
-    ts=0;
-   cb1.write=0;
-   cb1.read=0;
- }
+	#ifdef cirbuf
+
+    	if (ts==0)								//send data
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=read1[0];
+		}
+    	if (ts==1)
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=read1[0];
+    	}
+    	if (ts==2)
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=read1[0];
+		}
+    	if(ts==3)
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=read1[0];
+    	}
+	#endif
+	#ifndef cirbuf
+
+    	if (ts==0)								//send data
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=temp10;
+    	}
+    	if (ts==1)
+		{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=temp11;
+		}
+    	if (ts==2)
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=temp12;
+    	}
+    	if(ts==3)
+    	{
+    		CBRead(&cb1,rd);
+    		LEUART0->TXDATA=temp13;
+
+    }
+	#endif
+    while((LEUART0->IF & LEUART_IF_TXC)==0);
+    ts++;
+    if (ts==4)
+    {
+    	NVIC_DisableIRQ(LEUART0_IRQn);  //disable LEUART0 Interrupt
+    	ts=0;
+    	cb1.write=0;
+    	cb1.read=0;
+    }
 }
 int main(void){
 	/**************************************************************************//**
@@ -1073,76 +1026,68 @@ int main(void){
 
 	CHIP_Init();
 	blockSleepMode(3);
-	if (i2cuse ==0) setupACMP();
-
+	#ifndef i2cuse
+	setupACMP();
+	#endif
 	uint8_t *wr=malloc(1*sizeof(char));
 
 	rd=read1;
-	//struct CirBuf cb1;
-	//memset(&cb1, 0, sizeof(cb1));
     cb1.buf=wr;
 	cb1.size=8;
 	cb1.read=0;
 	cb1.write=0;
 
-	CMU_setup();
-	GPIO_setup();
-	// Bitmask for the currently touched channels
+	CMU_setup();			//setup clocks
+	GPIO_setup();			//setup GPIO pins
+
 	I2C0_setup();
 	GPIOacc_setup();
 	workacc();
-
-	  // If any channels are touched while starting, the calibration will not be correct.
-	  // Wait while channels are touched to be sure we continue in a calibrated state.
-
-
 	leuart0_setup();
-	if(DMAuse==1) setupDma();
-
-	setupAdc();
+	#ifdef DMAuse
+	setupDma();  // setup dma if dmause is high
+	#endif
+	setupAdc();					//setup ADC
 
 
     LETIMER0_setup();
     LETIMER_Enable(LETIMER0,true);
     uint16_t channels_touched = 0;
     	int  next =0;
+    	// Bitmask for the currently touched channels
     	float sensitivity[] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0};
     	// Init Capacitive touch for channels configured in sensitivity array
     	LETOUCH_Init(sensitivity);
 	while(1)
 	{
-		if (DMAuse==0 && countADC>0 && countADC<=ADCSAMPLES)//switch off if 1000 conversions done
+		#ifndef DMAuse
+		if (countADC>0 && countADC<=ADCSAMPLES)//switch off if 1000 conversions done
 		{
 			   ADC_Start(ADC0,adcStartSingle);
 		}
-		// Get channels that are pressed, result is or'ed together
+		#endif
 		   channels_touched = LETOUCH_GetChannelsTouched();
 		   while(LETOUCH_GetChannelsTouched() != 0);
-		    // Check if any channels are in the touched state.
-		 if(channels_touched){
-		      // Turn on LED
+		 if(channels_touched)
+		 {
 		    if (next ==0)
 		    	{
 		        LETIMER_Enable(LETIMER0,false);
-		      //  I2C_Enable(I2C0,false);
 
-		    //	GPIO_PinModeSet(LEDport, LEDpin2, gpioModePushPull, 1);
 		         next=1;
 		         while(LETOUCH_GetChannelsTouched() != 0);
 
 		    }
 		    else{
-		      // Turn off LED
-		      //GPIO_PinModeSet(LEDport, LEDpin2, gpioModePushPull, 0);
+
 		        LETIMER_Enable(LETIMER0,true);
-		        //I2C_Enable(I2C0,true);
+
 		      next=0;
 		      while(LETOUCH_GetChannelsTouched() != 0);
 
 		    }
 		 }
 		sleep();
-		//EMU_EnterEM2(true);
 	}
 
 	return 0;
