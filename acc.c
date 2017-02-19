@@ -1,3 +1,19 @@
+/**************************************************************************//**
+ * @file
+ * @brief Empty Project
+ * @author Energy Micro AS
+ * @version 3.20.2
+ ******************************************************************************
+ * @section License
+ * <b>(C) Copyright 2014 Silicon Labs, http://www.silabs.com</b>
+ *******************************************************************************
+ *
+ * This file is licensed under the Silicon Labs Software License Agreement. See 
+ * "http://developer.silabs.com/legal/version/v11/Silicon_Labs_Software_License_Agreement.txt"  
+ * for details. Before using this software for any purpose, you must agree to the 
+ * terms of that agreement.
+ *
+ ******************************************************************************/
 #include "acc.h"
 
 /*void leuart0_setup(void)
@@ -47,8 +63,8 @@ void I2C0_setup(void)
 	CMU_ClockEnable(cmuClock_CORELE,true);
 	CMU_ClockEnable(cmuClock_GPIO,true);
 	CMU_ClockEnable(cmuClock_I2C0,true);
-	GPIO_PinModeSet(SDAport,SCLpin, gpioModeWiredAnd, 1);
-	GPIO_PinModeSet(SDAport,SDApin, gpioModeWiredAnd, 1);
+	GPIO_PinModeSet(accSDAport,accSCLpin, gpioModeWiredAnd, 1);
+	GPIO_PinModeSet(accSDAport,accSDApin, gpioModeWiredAnd, 1);
     I2C0->ROUTE= I2C_ROUTE_SDAPEN |
                  I2C_ROUTE_SCLPEN |
                  (1<< _I2C_ROUTE_LOCATION_SHIFT);
@@ -71,9 +87,9 @@ void I2C0_setup(void)
    }
    for(int i=0;i<=9;i++)
    {
-	   GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 0);
+	   GPIO_PinModeSet(accSCLport,accSCLpin, gpioModeWiredAnd, 0);
 
-	       GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 1);
+	       GPIO_PinModeSet(accSCLport,accSCLpin, gpioModeWiredAnd, 1);
    }
 
 }
@@ -137,14 +153,14 @@ void workacc()
 		writeacc(CTRL_REG5,0x20);
      	writeacc(0x2A,25);
 
-	GPIO_ExtIntConfig(intport,intpin,1,false,true,true);
+	GPIO_ExtIntConfig(accintport,accintpin,1,false,true,true);
 
 
 }
 void GPIOacc_setup()
 {
 
-	GPIO_PinModeSet(intport, intpin, gpioModeInput, 1);    //enable GPIO for pin and port for interrupts
+	GPIO_PinModeSet(accintport, accintpin, gpioModeInput, 1);    //enable GPIO for pin and port for interrupts
 	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0);
 
 	 NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
@@ -160,3 +176,23 @@ void GPIO_EVEN_IRQHandler(void)
   dates= readacc(TRANSIENT_SRC);
   GPIO_PinOutToggle(LEDport,LEDpin);
  }
+
+
+/**************************************************************************//**
+ * @brief  Main function
+ *****************************************************************************/
+/*int main(void)
+{
+  // Chip errata
+  CHIP_Init();
+  I2C0_setup();
+  GPIOacc_setup();
+  //leuart0_setup();
+  workacc();
+  EMU_EnterEM3(true);
+  // Infinite loop
+  while (1) {
+	  EMU_EnterEM3(true);
+  }
+}
+*/
