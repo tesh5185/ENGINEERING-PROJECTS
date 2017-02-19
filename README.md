@@ -17,6 +17,8 @@ Additional concepts involved:
 -Modularity
 -Testability
 -Software abstraction
+-Function pointers
+-inline functions
 -Robustness
 -Efficiency
 -Structure
