@@ -23,21 +23,23 @@
 #include "em_emu.h"
 #include "em_gpio.h"
 #include "em_timer.h"
+#include "em_int.h"
 
-
+unsigned int sleep_block_counter[5];
 #define SDAport gpioPortC
 #define SDApin  4
+#define SCLport gpioPortC
 #define SCLpin  5
 #define LEDpin 2
 #define LEDport gpioPortE
-#define intpin 1
+#define intpin 3
 #define intport gpioPortD
 #define powerport gpioPortD
 #define powerpin 0
 //#define slaveadd 0x39<<1
 #define writebit 0
 #define readbit  1
-int data,flag1,dat,date;
+int data,flag1,dat,date,dates;
 #define SA0 1
 #if SA0
 #define SLAVE_ADDRESS 0x1D<<1  // SA0 is high, 0x1C if low
@@ -45,7 +47,42 @@ int data,flag1,dat,date;
 #define SLAVE_ADDRESS 0x1C<<1
 #endif
 
+void blockSleepMode(unsigned int sleepstate) //block sleep mode
+{
+	INT_Disable();
+	sleep_block_counter[sleepstate]++;
+	INT_Enable();
+}
+//disclaimer: I admit Ive taken this routine from simplicity studio
+void unblockSleepMode(unsigned int sleepstate) // unblock sleep mode
+{	INT_Disable();
+	if(sleep_block_counter[sleepstate]>0)
+	{
+	sleep_block_counter[sleepstate]--;
+	}
+	else
+		sleep_block_counter[sleepstate]=0;
+	INT_Enable();
+}
+void sleep(void) //sleep routine
+{
+	if(sleep_block_counter[0]>0)
+	{ return;
+	}
+	else if(sleep_block_counter[1]>0)
+	{ EMU_EnterEM1();
+	}
+	else if(sleep_block_counter[2]>0)
+	{ EMU_EnterEM2(true);
+	}
+	else if(sleep_block_counter[3]>0)
+	{ EMU_EnterEM3(true);
+	}
+	else
+	{EMU_EnterEM4();
+	}
 
+}
 void powerup(void)
 
 {
@@ -103,9 +140,9 @@ void i2c1_setup(void)
    }
    for(int i=0;i<=9;i++)
    {
-	   GPIO_PinModeSet(gpioPortC, 5, gpioModeWiredAnd, 0);
+	   GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 0);
 
-	       GPIO_PinModeSet(gpioPortC, 5, gpioModeWiredAnd, 1);
+	       GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 1);
    }
   // I2C1->IEN|=I2C_IEN_NACK;
    //I2C1->IEN|=I2C_IEN_ACK;
@@ -146,8 +183,13 @@ int read(int address)
 	 flag1 = I2C1->IF;
 	 I2C1->IFC=flag1;
 
+
 	 I2C1->CMD  |= I2C_CMD_START;
-	 I2C1->TXDATA =SLAVE_ADDRESS|readbit;				// write slave address with read bit
+	 I2C1->TXDATA =SLAVE_ADDRESS|readbit;// write slave address with read bit
+	 while((I2C1->IF & I2C_IF_ACK) == 0);
+	 flag1 = I2C1->IF;
+	 I2C1->IFC=flag1;
+
 	 while(!(I2C1->STATUS & I2C_STATUS_RXDATAV));
 	 data=I2C1->RXDATA;
 	 I2C1->CMD |= I2C_CMD_NACK;
@@ -159,19 +201,21 @@ int read(int address)
 void work()
 {
 	write(0x2A,0x18);
-	write(0x1D,0x16);
+	write(0x2B,0x18);
+	write(0x1D,0x12);
 	write(0x1F,0x0F);
 	write(0x20,0x05);
 	write(0x2D,0x20);
 	write(0x2E,0x20);
 
 
-	//dat=read(0x2A);
+//	dat=read(0x1D);
 	//dat|=0x01;
 	//for(int i=0;i<10000;i++);
 	write(0x2A,25);
-	for(int i=0;i<10000;i++);
-	date =read(0x2A);
+	//for(int i=0;i<10000;i++);
+	//date =read(0x1F);
+
 	GPIO_ExtIntConfig(intport,intpin,1,false,true,true);
 	//NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
 		// NVIC_EnableIRQ(GPIO_ODD_IRQn);
@@ -183,7 +227,7 @@ void GPIO2_setup()
 	GPIO_PinOutSet(powerport, powerpin);
 	GPIO_PinModeSet(intport, intpin, gpioModeInput, 1);    //enable GPIO for pin and port for interrupts
 	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0);
-	//GPIO_ExtIntConfig(intport,intpin,1,true,false,true);
+	//GPIO_ExtIntConfig(intport,intpin,1,false,true,false);
 
 
 	 NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
@@ -196,22 +240,14 @@ void GPIO_ODD_IRQHandler(void)
   /* clear flag for PC9 interrupt */
   int flags8=GPIO->IF;
   GPIO->IFC=flags8;
- // GPIO_ExtIntConfig( gpioPortD, 1, 1,true,false, false );
-
-  /*I2C1->TXDATA =slave_address<<1|writeslave;
-      I2C1->CMD  |= I2C_CMD_START;
-      while((I2C1->IF & I2C_IF_ACK) == 0);
-      int flag3 = I2C1->IF;
-      I2C1->IFC=flag3;
-      write(data0low_add);
-  read(slave_address<<1|readslave);
- int r= 256*cd+ab;
- if (r<0x000f)
-	 GPIO_PinOutSet(gpioPortE,2);
- int s=256*gh+ef;
- if (s>0x0800)
-	 GPIO_PinOutClear(gpioPortE,2);*/
-}
+ // date=read(0x0C);
+  //if(date==0x20)
+  //{
+ // NVIC_DisableIRQ(GPIO_ODD_IRQn);
+  dates= read(0x1E);
+	 GPIO_PinOutToggle(LEDport,LEDpin);
+  //}
+ }
 
 
 /**************************************************************************//**
@@ -221,15 +257,20 @@ int main(void)
 {
   /* Chip errata */
   CHIP_Init();
-
+  //blockSleepMode(3);
+  //EMU_EnterEM3(true);
   i2c1_setup();
   GPIO2_setup();
   powerup();
-  work();
 
+  work();
+  EMU_EnterEM3(true);
   /* Infinite loop */
   while (1) {
-	  //GPIO_ExtIntConfig(intport,1,1,true,false,true);
+	 // GPIO_ExtIntConfig(intport,1,1,false,true,true);
+	//  NVIC_EnableIRQ(GPIO_ODD_IRQn);
 
+	 EMU_EnterEM3(true);
+	  //sleep();
   }
 }
