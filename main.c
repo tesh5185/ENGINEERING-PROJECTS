@@ -613,11 +613,14 @@ void finaltemp()
      temp13=temp1/10;
      temp12=temp13%10;
      temp13=temp13/10;
+     INT_Disable();
+     CBWrite(&cb1,84);
      CBWrite(&cb1,temp10);
      CBWrite(&cb1,temp11);
      CBWrite(&cb1,temp12);
      CBWrite(&cb1,temp13);
-     CBWrite(&cb1,c);
+     INT_Enable();
+    // CBWrite(&cb1,c);
      NVIC_EnableIRQ(LEUART0_IRQn);
      if (temp <lowertemp|| temp>uppertemp)
     	GPIO_PinOutSet(LEDport,LEDpin2);
@@ -1042,7 +1045,7 @@ int main(void){
 
 	setupAdc();
 
-	//leuart0_setup();
+	leuart0_setup();
 	if(DMAuse==1) setupDma();
 
 
