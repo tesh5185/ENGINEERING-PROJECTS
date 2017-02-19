@@ -6,37 +6,181 @@
 #include "ble_manager.h"
 #include "ble_utils.h"
 #include "button.h"
-#include "startup_template_app.h"
-#include "at_ble_trace.h"
-#include "at_ble_errno.h"
-#include "pas_client.h"
-#include "pas_app.h"
+//#include "startup_template_app.h"
+#include "aon_sleep_timer_basic.h"
+#include "battery.h"
+#include "battery_info.h"
+#define _AON_TIMER_
 
-volatile uint8_t press_count = DEVICE_SILENT;		/*!< button press count*/
-volatile bool flag = false;					/*!< To send values once per button press*/
-volatile bool app_state;			/*!< state of the app,true for connected false for disconnected*/
+#define LEDYellow  LED_0_PIN
 volatile at_ble_status_t status;
 at_ble_handle_t htpt_conn_handle;
 volatile bool Timer_Flag = false;
 volatile bool Temp_Notification_Flag = false;
 
+/* === GLOBALS ============================================================ */
+#define BATTERY_UPDATE_INTERVAL	(1) //1 second
+#define BATTERY_MAX_LEVEL		(100)
+#define BATTERY_MIN_LEVEL		(0)
+
+uint8_t db_mem[1024] = {0};
+bat_gatt_service_handler_t bas_service_handler;
+bool volatile timer_cb_done = false;
+bool volatile flag = true;
+bool volatile battery_flag = true;
+at_ble_handle_t bat_connection_handle;
+
+void resume_cb(void);
 
 static at_ble_status_t ble_paired_cb (void *param);
 static at_ble_status_t ble_disconnected_cb (void *param);
+static void ble_advertise (void);
+//! [module_inst]
+struct uart_module uart_instance;
+//! [module_inst]
 
-static const ble_event_callback_t app_gap_handle[] = {
+
+//! [dma_resource]
+struct dma_resource uart_dma_resource_tx;
+struct dma_resource uart_dma_resource_rx;
+//! [dma_resource]
+int alert;
+//! [usart_buffer]
+#define BUFFER_LEN    4
+static uint8_t string[BUFFER_LEN];
+//! [usart_buffer]
+
+
+//! [transfer_descriptor]
+struct dma_descriptor example_descriptor_tx;
+struct dma_descriptor example_descriptor_rx;
+//! [transfer_descriptor]
+void configure_gpio_pins(void);
+
+
+static void aon_sleep_timer_callback(void)
+{
+	timer_cb_done = true;
+	send_plf_int_msg_ind(USER_TIMER_CALLBACK, TIMER_EXPIRED_CALLBACK_TYPE_DETECT, NULL, 0);
+}
+
+/* Advertisement data set and Advertisement start */
+static at_ble_status_t battery_service_advertise(void)
+{
+	at_ble_status_t status3 = AT_BLE_FAILURE;
+	
+	if((status3 = ble_advertisement_data_set()) != AT_BLE_SUCCESS)
+	{
+		DBG_LOG("advertisement data set failed reason :%d",status3);
+		return status3;
+	}
+	
+	/* Start of advertisement */
+	if((status3 = at_ble_adv_start(AT_BLE_ADV_TYPE_UNDIRECTED, AT_BLE_ADV_GEN_DISCOVERABLE, NULL, AT_BLE_ADV_FP_ANY, APP_BAS_FAST_ADV, APP_BAS_ADV_TIMEOUT, 0)) == AT_BLE_SUCCESS)
+	{
+		DBG_LOG("BLE Started Adv");
+		return AT_BLE_SUCCESS;
+	}
+	else
+	{
+		DBG_LOG("BLE Adv start Failed reason :%d",status3);
+	}
+	return status3;
+}
+
+/* Callback registered for AT_BLE_PAIR_DONE event from stack */
+static at_ble_status_t ble_paired_app_event(void *param)
+{
+	timer_cb_done = false;
+	ALL_UNUSED(param);
+	return AT_BLE_SUCCESS;
+}
+
+/* Callback registered for AT_BLE_DISCONNECTED event from stack */
+static at_ble_status_t ble_disconnected_app_event(void *param)
+{
+	timer_cb_done = false;
+	flag = true;
+	
+	aon_sleep_timer_service_stop();
+	ble_advertise();
+	//battery_service_advertise();
+	ALL_UNUSED(param);
+	return AT_BLE_SUCCESS;
+}
+
+static at_ble_status_t ble_connected_app_event(void *param)
+{
+	at_ble_connected_t *connected = (at_ble_connected_t *)param;
+	bat_connection_handle = connected->handle;
+	#if !BLE_PAIR_ENABLE
+	ble_paired_app_event(param);
+	#else
+	ALL_UNUSED(param);
+	#endif
+	return AT_BLE_SUCCESS;
+}
+
+/* Callback registered for AT_BLE_NOTIFICATION_CONFIRMED event from stack */
+static at_ble_status_t ble_notification_confirmed_app_event(void *param)
+{
+	at_ble_cmd_complete_event_t *notification_status = (at_ble_cmd_complete_event_t *)param;
+	if(!notification_status->status)
+	{
+		flag = true;
+		DBG_LOG_DEV("sending notification to the peer success");
+	}
+	return AT_BLE_SUCCESS;
+}
+
+/* Callback registered for AT_BLE_CHARACTERISTIC_CHANGED event from stack */
+static at_ble_status_t ble_char_changed_app_event(void *param)
+{
+	uint16_t device_listening;
+	at_ble_characteristic_changed_t *char_handle = (at_ble_characteristic_changed_t *)param;
+
+	if(bas_service_handler.serv_chars.client_config_handle == char_handle->char_handle)
+	{
+		device_listening = char_handle->char_new_value[1]<<8| char_handle->char_new_value[0];
+		if(!device_listening)
+		{
+			aon_sleep_timer_service_stop();
+		}
+		else
+		{
+			aon_sleep_timer_service_init(1);
+			aon_sleep_timer_service_start(aon_sleep_timer_callback);
+		}
+	}
+	return bat_char_changed_event(char_handle->conn_handle,&bas_service_handler, char_handle, &flag);
+}
+
+static const ble_event_callback_t battery_app_gap_cb[] = {
 	NULL,
 	NULL,
 	NULL,
 	NULL,
 	NULL,
-	app_connected_event_handler,
-	app_disconnected_event_handler,
+	ble_connected_app_event,
+	ble_disconnected_app_event,
+	NULL,
+	NULL,
+	ble_paired_app_event,
 	NULL,
 	NULL,
 	NULL,
 	NULL,
+	ble_paired_app_event,
 	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
+static const ble_event_callback_t battery_app_gatt_server_cb[] = {
+	ble_notification_confirmed_app_event,
+	NULL,
+	ble_char_changed_app_event,
 	NULL,
 	NULL,
 	NULL,
@@ -45,90 +189,197 @@ static const ble_event_callback_t app_gap_handle[] = {
 	NULL,
 	NULL
 };
-void button_cb(void);
-static void display_alert_status_info(uint8_t *data)
+
+void resume_cb(void)
 {
-	if (data[0] & BIT0_MASK) {
-		DBG_LOG("Ringer State Active");
-		} else {
-		DBG_LOG("Ringer State Inactive");
+	init_port_list();
+	//uart_init(UART_HW_MODULE_UART1,&uart_cfg);
+	serial_console_init();
+}
+
+
+
+void configure_gpio_pins(void)
+{
+	//! [setup_1]
+	struct gpio_config config_gpio_pin;
+	//! [setup_1]
+	//! [setup_2]
+	gpio_get_config_defaults(&config_gpio_pin);
+	//! [setup_2]
+
+	//! [setup_3]
+	config_gpio_pin.direction  = GPIO_PIN_DIR_INPUT;
+	config_gpio_pin.input_pull = GPIO_PIN_PULL_UP;
+	//! [setup_3]
+	//! [setup_4]
+	gpio_pin_set_config(BUTTON_0_PIN, &config_gpio_pin);
+	//! [setup_4]
+
+	//! [setup_5]
+	config_gpio_pin.direction = GPIO_PIN_DIR_OUTPUT;
+	//! [setup_5]
+	//! [setup_6]
+	gpio_pin_set_config(LEDYellow, &config_gpio_pin);
+	//! [setup_6]
+}
+
+
+static void transfer_done_tx(struct dma_resource* const resource )
+{
+	dma_start_transfer_job(&uart_dma_resource_rx);
+}
+//! [transfer_done_tx]
+
+//! [transfer_done_rx]
+static void transfer_done_rx(struct dma_resource* const resource )
+{
+	dma_start_transfer_job(&uart_dma_resource_tx);
+	configure_gpio_pins();
+	if (string[0]==65)
+	alert=1;
+	else
+	alert=0;
+	/*gpio_pin_set_output_level(LEDYellow, false);
+	else if (string[1]==66)*/
+	gpio_pin_set_output_level(LEDYellow, true);
+
+}
+//! [transfer_done_rx]
+
+//! [config_dma_resource_tx]
+static void configure_dma_resource_tx(struct dma_resource *resource)
+{
+	//! [setup_tx_1]
+	struct dma_resource_config config;
+	//! [setup_tx_1]
+
+	//! [setup_tx_2]
+	dma_get_config_defaults(&config);
+	//! [setup_tx_2]
+
+	//! [setup_tx_3]
+	config.des.periph = UART0TX_DMA_PERIPHERAL;
+	config.des.enable_inc_addr = false;
+	config.src.periph = UART0TX_DMA_PERIPHERAL;
+	//! [setup_tx_3]
+
+	//! [setup_tx_4]
+	dma_allocate(resource, &config);
+	//! [setup_tx_4]
+}
+//! [config_dma_resource_tx]
+
+//! [setup_dma_transfer_tx_descriptor]
+static void setup_transfer_descriptor_tx(struct dma_descriptor *descriptor)
+{
+
+	//! [setup_tx_5]
+	dma_descriptor_get_config_defaults(descriptor);
+	//! [setup_tx_5]
+
+	//! [setup_tx_6]
+	descriptor->buffer_size = BUFFER_LEN;
+	descriptor->read_start_addr = (uint32_t)string;
+	descriptor->write_start_addr =
+	(uint32_t)(&uart_instance.hw->TRANSMIT_DATA.reg);
+	//! [setup_tx_6]
+}
+//! [setup_dma_transfer_tx_descriptor]
+
+//! [config_dma_resource_rx]
+static void configure_dma_resource_rx(struct dma_resource *resource)
+{
+	//! [setup_rx_1]
+	struct dma_resource_config config;
+	//! [setup_rx_1]
+
+	//! [setup_rx_2]
+	dma_get_config_defaults(&config);
+	//! [setup_rx_2]
+
+	//! [setup_rx_3]
+	config.src.periph = UART0RX_DMA_PERIPHERAL;
+	config.src.enable_inc_addr = false;
+	config.src.periph_delay = 1;
+	//! [setup_rx_3]
+
+	//! [setup_rx_4]
+	dma_allocate(resource, &config);
+	//! [setup_rx_4]
+}
+//! [config_dma_resource_rx]
+
+//! [setup_dma_transfer_rx_descriptor]
+static void setup_transfer_descriptor_rx(struct dma_descriptor *descriptor)
+{
+	//! [setup_rx_5]
+	dma_descriptor_get_config_defaults(descriptor);
+	//! [setup_rx_5]
+
+	//! [setup_tx_6]
+	descriptor->buffer_size = BUFFER_LEN;
+	descriptor->read_start_addr =
+	(uint32_t)(&uart_instance.hw->RECEIVE_DATA.reg);
+	descriptor->write_start_addr = (uint32_t)string;
+	//! [setup_tx_6]
+}
+//! [setup_dma_transfer_rx_descriptor]
+
+//! [setup_usart]
+static void configure_usart(void)
+{
+	//! [setup_config]
+	struct uart_config config_uart;
+	//! [setup_config]
+
+	//! [setup_config_defaults]
+	uart_get_config_defaults(&config_uart);
+	//! [setup_config_defaults]
+
+	//! [setup_change_config]
+	config_uart.baud_rate = 9600;
+	config_uart.pin_number_pad[0] = EDBG_CDC_PIN_PAD0;
+	config_uart.pin_number_pad[1] = EDBG_CDC_PIN_PAD1;
+	config_uart.pin_number_pad[2] = EDBG_CDC_PIN_PAD2;
+	config_uart.pin_number_pad[3] = EDBG_CDC_PIN_PAD3;
+	config_uart.pinmux_sel_pad[0] = EDBG_CDC_MUX_PAD0;
+	config_uart.pinmux_sel_pad[1] = EDBG_CDC_MUX_PAD1;
+	config_uart.pinmux_sel_pad[2] = EDBG_CDC_MUX_PAD2;
+	config_uart.pinmux_sel_pad[3] = EDBG_CDC_MUX_PAD3;
+	//! [setup_change_config]
+
+	//! [setup_set_config]
+	while (uart_init(&uart_instance,
+	EDBG_CDC_MODULE, &config_uart) != STATUS_OK) {
 	}
-	
-	if (data[0] & BIT1_MASK) {
-		DBG_LOG("Vibration State Active");
-		} else {
-		DBG_LOG("Vibration State Inactive");
-	}
-	
-	if (data[0] & BIT2_MASK) {
-		DBG_LOG("Display State Active");
-		} else {
-		DBG_LOG("Display State Inactive");
-	}
+	//! [setup_set_config]
+
+	//! [enable_interrupt]
+	uart_enable_transmit_dma(&uart_instance);
+	uart_enable_receive_dma(&uart_instance);
+	//! [enable_interrupt]
 }
-static void display_ringer_setting_info(uint8_t *data)
+//! [setup_usart]
+
+//! [setup_callback]
+static void configure_dma_callback(void)
 {
-	if (data[0] == RINGER_SILENT) {
-		DBG_LOG_CONT("Ringer Silent");
-		} else if (data[0] == RINGER_NORMAL) {
-		DBG_LOG_CONT("Ringer Normal");
-	}
+	//! [setup_callback_register]
+	dma_register_callback(&uart_dma_resource_tx, transfer_done_tx, DMA_CALLBACK_TRANSFER_DONE);
+	dma_register_callback(&uart_dma_resource_rx, transfer_done_rx, DMA_CALLBACK_TRANSFER_DONE);
+	//! [setup_callback_register]
+
+	//! [setup_enable_callback]
+	dma_enable_callback(&uart_dma_resource_tx, DMA_CALLBACK_TRANSFER_DONE);
+	dma_enable_callback(&uart_dma_resource_rx, DMA_CALLBACK_TRANSFER_DONE);
+	//! [setup_enable_callback]
+
+	//! [enable_inic]
+	NVIC_EnableIRQ(PROV_DMA_CTRL0_IRQn);
+	//! [enable_inic]
 }
-
-static at_ble_status_t app_connected_event_handler(void *params)
-{
-	app_state = true;
-	ALL_UNUSED(params);
-	return AT_BLE_SUCCESS;
-}
-static at_ble_status_t app_disconnected_event_handler(void *params)
-{
-	app_state = false;
-	press_count = DEVICE_SILENT;
-	//pas_client_adv();
-	//ALL_UNUSED(params);
-    ble_advertise();
-	return AT_BLE_SUCCESS;
-}
-
-static void app_alert_status_read(uint8_t *data, uint8_t len)
-{
-	DBG_LOG("\r\nAlert Status read:");
-	DBG_LOG_DEV("Length of the data is %d",len);
-	display_alert_status_info(data);
-}
-
-static void app_ringer_setting_read(uint8_t *data, uint8_t len)
-{
-	DBG_LOG("\r\nRinger setting read :");
-	DBG_LOG_DEV("Length of the data is %d",len);
-	display_ringer_setting_info(data);
-}
-static void app_alert_status_notify(uint8_t *data, uint8_t len)
-{
-	DBG_LOG("\r\nNotified Alert Status :");
-	DBG_LOG_DEV("length of the data is %d",len);
-	display_alert_status_info(data);
-}
-static void app_ringer_setting_notify(uint8_t *data, uint8_t len)
-{
-	DBG_LOG("\r\nNotified Ringer setting :");
-	DBG_LOG_DEV("length of the data is %d",len);
-	display_ringer_setting_info(data);
-}
-
-void button_cb(void)
-{
-	if (app_state && !flag) {
-		flag = true;
-		send_plf_int_msg_ind(USER_TIMER_CALLBACK, TIMER_EXPIRED_CALLBACK_TYPE_DETECT, NULL, 0);
-	}
-}
-
-
-
-
-
+//! [setup_callback]
 
 
 static void ble_advertise (void)
@@ -154,7 +405,6 @@ static void ble_advertise (void)
 		while(1);
 	}
 }
-
 
 static void htp_temperature_read(void)
 {
@@ -297,7 +547,13 @@ static void htp_temperature_send(void)
 	at_ble_prf_date_time_t timestamp;
 	float temperature;
 	/* Read Temperature Value from IO1 Xplained Pro */
-	temperature = at30tse_read_temperature();
+	//temperature = at30tse_read_temperature();
+	if ((string[0]==67)||(string[0]==68))
+	{
+	   temperature=string[3]*10+string[2]+(float)string[1]/10;
+	   if (string[0]==67)
+	   temperature=temperature*(-1);
+	}
 	#ifdef HTPT_FAHRENHEIT
 	temperature = (((temperature * 9.0)/5.0) + 32.0);
 	#endif
@@ -329,331 +585,152 @@ static void htp_temperature_send(void)
 }
 
 
-int main(void)
+
+
+
+int main (void)
 {
-	// To keep the app executing 
-	bool app_exec = true;
-	app_state = false;
-	#ifdef ENABLE_PTS
-	uint8_t function_selector;
-	#endif
+	at_ble_status_t status3;
+	uint8_t battery_level = BATTERY_MIN_LEVEL;
 	
 	platform_driver_init();
 	acquire_sleep_lock();
-
-	// Initialize serial console 
+	/* Initialize serial console */
 	serial_console_init();
-
-	DBG_LOG("Initializing Phone Alert Status Profile Application");
-
-	// Initialize the button
-	gpio_init();
-	button_init();
-	button_register_callback(button_cb);
-
-	// Initializing the hardware timer 
+	DBG_LOG("Initializing Battery Service Application");
+	/* Hardware timer */
 	hw_timer_init();
-
-	//Registration of timer callback
+	/* Register the callback */
 	hw_timer_register_callback(timer_callback_handler);
-// Start timer 
-hw_timer_start(1);
-
-	// initialize the ble chip	and Set the device mac address 
-	ble_device_init(NULL);
-
-	// Initializing the profile 
-	pas_client_init(NULL);
-	register_alert_status_read_callback(app_alert_status_read);
-	
-	register_ringer_setting_read_callback(app_ringer_setting_read);
-	
-	register_alert_status_notification_callback(app_alert_status_notify);
-	
-	register_ringer_setting_notification_callback(app_ringer_setting_notify);
-	
-	ble_mgr_events_callback_handler(REGISTER_CALL_BACK, BLE_GAP_EVENT_TYPE,app_gap_handle);
-		at30tse_init();
-		// configure the temperature sensor ADC
-		at30tse_write_config_register(AT30TSE_CONFIG_RES(AT30TSE_CONFIG_RES_12_bit));
-		// read the temperature from the sensor
-		htp_temperature_read();
-
-		// Initialize the htp service
-		htp_init();
-		// Register Bluetooth events Callbacks
-		register_ble_callbacks();
-		ble_advertise();
-	// Starting the advertisement 
-	//pas_client_adv();
-	
-	
-	//ble_advertise();
-	// Capturing the events  
-	while(app_exec) {
-	//	ble_event_task(655);
-		if (Timer_Flag & Temp_Notification_Flag)
-		{
-			htp_temperature_send();
-		}
-		// BLE Event Task 
-		ble_event_task(BLE_EVENT_TIMEOUT);
-		if (flag) {
-			flag = false;
-			#ifdef ENABLE_PTS
-			DBG_LOG_PTS("To choose the functionality enter the index of the functionality displayed");
-			DBG_LOG_PTS("\t 1.Set Device to Silent");
-			DBG_LOG_PTS("\t 2.Set Device to Mute Once");
-			DBG_LOG_PTS("\t 3.Set Device to Cancel Mute");
-			DBG_LOG_PTS("\t 4.Read Alert Status");
-			DBG_LOG_PTS("\t 5.Read Ringer Setting");
-			DBG_LOG_PTS("\t 6.Start Service Discovery");
-			function_selector = getchar_b11();
-			function_selector = function_selector - 48;
-			DBG_LOG("The option chosen is %d",function_selector);
-			switch(function_selector) {
-				
-				case DEVICE_SILENT:
-				pas_client_write_ringer_control_point(DEVICE_SILENT);
-				break;
-				
-				case DEVICE_MUTE:
-				pas_client_write_ringer_control_point(DEVICE_MUTE);
-				break;
-				
-				case DEVICE_NORMAL:
-				pas_client_write_ringer_control_point(DEVICE_NORMAL);
-				break;
-				
-				case READ_ALERT_STATUS:
-				DBG_LOG("reading the alert status ");
-				if (pas_client_read_alert_status_char() != AT_BLE_SUCCESS) {
-					DBG_LOG("reading alert status invocation failed");
-				}
-				
-				break;
-				
-				case READ_RINGER_SETTING:
-				DBG_LOG("reading the ringer setting ");
-				if (pas_client_read_ringer_setting_char() != AT_BLE_SUCCESS) {
-					DBG_LOG("reading ringer control point invocation failed");
-				}
-				case DISCOVER_ATTRIBUTES:
-				DBG_LOG("Starting Service discovery");
-				if (pas_client_start_service_discovery() == AT_BLE_SUCCESS) {
-					DBG_LOG("Started the service discovery successfully");
-					} else {
-					DBG_LOG("Service discovery failed");
-				}
-				break;
-				
-				default:
-				DBG_LOG("Invalid Number pressed %d",function_selector);
-			}
-			
-			#else
-			if (press_count == DEVICE_SILENT) {
-				DBG_LOG("\r\nDevice to silent");
-			}
-			else if (press_count == DEVICE_MUTE) {
-				DBG_LOG("\r\nDevice to Mute Once");
-			}
-			else if (press_count == DEVICE_NORMAL) {
-				DBG_LOG("\r\nDevice to cancel mute");
-			}
-			else if (press_count == READ_REQUEST) {
-				DBG_LOG("\r\nreading the alert status and ringer setting");
-				if ((pas_client_read_ringer_setting_char()) != AT_BLE_SUCCESS) {
-					DBG_LOG("reading ringer control point invocation failed");
-				}
-				
-				if ((pas_client_read_alert_status_char()) != AT_BLE_SUCCESS) {
-					DBG_LOG("reading alert status invocation failed");
-				}
-
-				press_count = DEVICE_SILENT;
-				continue;
-			}
-
-			pas_client_write_ringer_control_point(press_count);
-			press_count++;
-			#endif
-		}
-		
-	}
-
-	return 0;
-}
-/*int main (void)//just temp
-{
-	platform_driver_init();
-	acquire_sleep_lock();
-	// Initialize serial console 
-	serial_console_init();
-	// Hardware timer 
-	hw_timer_init();
-	// Register the callback 
-	hw_timer_register_callback(timer_callback_handler);
-	// Start timer 
+	/* Start timer */
 	hw_timer_start(1);
 	printf("\n\rSAMB11 BLE Application");
-	// initialize the BLE chip and Set the Device Address 
+	/* initialize the BLE chip and Set the Device Address */
 	ble_device_init(NULL);
-	// Initialize the temperature sensor 
+	/* Initialize the temperature sensor */
 	at30tse_init();
-	// configure the temperature sensor ADC 
+	/* configure the temperature sensor ADC */
 	at30tse_write_config_register(AT30TSE_CONFIG_RES(AT30TSE_CONFIG_RES_12_bit));
-	// read the temperature from the sensor 
+	/* read the temperature from the sensor */
 	htp_temperature_read();
 	
-	// Initialize the htp service 
+	/* Initialize the htp service */
 	htp_init();
-	//Register Bluetooth events Callbacks 
+	/* Register Bluetooth events Callbacks */
 	register_ble_callbacks();
 	
-	// Start Advertising process 
+	/* Start Advertising process */
 	ble_advertise();
+	SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+
+	//! [setup_init]
+	//! [init_system]
+	system_clock_config(CLOCK_RESOURCE_XO_26_MHZ, CLOCK_FREQ_26_MHZ);
+	//! [init_system]
+
+	//! [setup_usart]
+	configure_usart();
+	//! [setup_usart]
+
+	//! [setup_dma_resource]
+	configure_dma_resource_tx(&uart_dma_resource_tx);
+	configure_dma_resource_rx(&uart_dma_resource_rx);
+	//! [setup_dma_resource]
+
+	//! [setup_transfer_descriptor]
+	setup_transfer_descriptor_tx(&example_descriptor_tx);
+	setup_transfer_descriptor_rx(&example_descriptor_rx);
+	//! [setup_transfer_descriptor]
+
+	//! [add_descriptor_to_resource]
+	dma_add_descriptor(&uart_dma_resource_tx, &example_descriptor_tx);
+	dma_add_descriptor(&uart_dma_resource_rx, &example_descriptor_rx);
+	//! [add_descriptor_to_resource]
+
+	//! [configure_callback]
+	configure_dma_callback();
+	//! [configure_callback]
+	//! [setup_init]
+
+	//! [main]
+	//! [main_1]
+	dma_start_transfer_job(&uart_dma_resource_rx);
+	// Initialize the battery service
+	bat_init_service(&bas_service_handler, &battery_level);
+	
+	// Define the primary service in the GATT server database
+	if((status3 = bat_primary_service_define(&bas_service_handler))!= AT_BLE_SUCCESS)
+	{
+		DBG_LOG("defining battery service failed %d", status3);
+	}
+	//ble_advertise();
+	//battery_service_advertise();
+	
+	// Register callbacks for gap related events
+	ble_mgr_events_callback_handler(REGISTER_CALL_BACK,
+	BLE_GAP_EVENT_TYPE,
+	battery_app_gap_cb);
+	
+	// Register callbacks for gatt server related events
+	ble_mgr_events_callback_handler(REGISTER_CALL_BACK,
+	BLE_GATT_SERVER_EVENT_TYPE,
+	battery_app_gatt_server_cb);
+	
+	register_resume_callback(resume_cb);
+	
+	//release_sleep_lock();
+	
+	
+	
+	
 	while(true) {
 		ble_event_task(655);
 		if (Timer_Flag & Temp_Notification_Flag)
 		{
 			htp_temperature_send();
 		}
-	}
-}*/
-/*int main(void)//just alert
-{
-	// To keep the app executing 
-	bool app_exec = true;
-	app_state = false;
-	#ifdef ENABLE_PTS
-	uint8_t function_selector;
-	#endif
-	
-	platform_driver_init();
-	acquire_sleep_lock();
-
-	// Initialize serial console 
-	serial_console_init();
-
-	DBG_LOG("Initializing Phone Alert Status Profile Application");
-
-	// Initialize the button
-	gpio_init();
-	button_init();
-	button_register_callback(button_cb);
-	
-	// Initializing the hardware timer 
-	hw_timer_init();
-
-	//Registration of timer callback
-	hw_timer_register_callback(timer_callback_handler);
-
-	// initialize the ble chip	and Set the device mac address 
-	ble_device_init(NULL);
-
-	// Initializing the profile 
-	pas_client_init(NULL);
-	
-	// Starting the advertisement 
-	pas_client_adv();
-	
-	register_alert_status_read_callback(app_alert_status_read);
-	
-	register_ringer_setting_read_callback(app_ringer_setting_read);
-	
-	register_alert_status_notification_callback(app_alert_status_notify);
-	
-	register_ringer_setting_notification_callback(app_ringer_setting_notify);
-	
-	ble_mgr_events_callback_handler(REGISTER_CALL_BACK, BLE_GAP_EVENT_TYPE,app_gap_handle);
-	
-	// Capturing the events  
-	while(app_exec) {
-		//BLE Event Task 
-		ble_event_task(BLE_EVENT_TIMEOUT);
-		if (flag) {
-			flag = false;
-			#ifdef ENABLE_PTS
-			DBG_LOG_PTS("To choose the functionality enter the index of the functionality displayed");
-			DBG_LOG_PTS("\t 1.Set Device to Silent");
-			DBG_LOG_PTS("\t 2.Set Device to Mute Once");
-			DBG_LOG_PTS("\t 3.Set Device to Cancel Mute");
-			DBG_LOG_PTS("\t 4.Read Alert Status");
-			DBG_LOG_PTS("\t 5.Read Ringer Setting");
-			DBG_LOG_PTS("\t 6.Start Service Discovery");
-			function_selector = getchar_b11();
-			function_selector = function_selector - 48;
-			DBG_LOG("The option chosen is %d",function_selector);
-			switch(function_selector) {
+		
+		if (timer_cb_done)
+		{
+			timer_cb_done = false;
+			//send the notification and Update the battery level
+			if(flag){
+				if (string[0]!=65)
+				battery_level=BATTERY_MIN_LEVEL;
+				else
+				battery_level=BATTERY_MAX_LEVEL;
 				
-				case DEVICE_SILENT:
-				pas_client_write_ringer_control_point(DEVICE_SILENT);
-				break;
-				
-				case DEVICE_MUTE:
-				pas_client_write_ringer_control_point(DEVICE_MUTE);
-				break;
-				
-				case DEVICE_NORMAL:
-				pas_client_write_ringer_control_point(DEVICE_NORMAL);
-				break;
-				
-				case READ_ALERT_STATUS:
-				DBG_LOG("reading the alert status ");
-				if (pas_client_read_alert_status_char() != AT_BLE_SUCCESS) {
-					DBG_LOG("reading alert status invocation failed");
+				string[0]=0;
+				if(bat_update_char_value(bat_connection_handle,&bas_service_handler, battery_level, &flag) == AT_BLE_SUCCESS)
+				{
+					printf("Battery Level:%d", battery_level);
+					
 				}
-				
-				break;
-				
-				case READ_RINGER_SETTING:
-				DBG_LOG("reading the ringer setting ");
-				if (pas_client_read_ringer_setting_char() != AT_BLE_SUCCESS) {
-					DBG_LOG("reading ringer control point invocation failed");
+				for(int i=0;i<1000000;i++);
+				battery_level=BATTERY_MIN_LEVEL;
+				if(bat_update_char_value(bat_connection_handle,&bas_service_handler, battery_level, &flag) == AT_BLE_SUCCESS)
+				{
+					printf("Battery Level:%d", battery_level);
 				}
-				case DISCOVER_ATTRIBUTES:
-				DBG_LOG("Starting Service discovery");
-				if (pas_client_start_service_discovery() == AT_BLE_SUCCESS) {
-					DBG_LOG("Started the service discovery successfully");
-					} else {
-					DBG_LOG("Service discovery failed");
+				/*if(battery_level == BATTERY_MAX_LEVEL)
+				{
+					battery_flag = false;
 				}
-				break;
-				
-				default:
-				DBG_LOG("Invalid Number pressed %d",function_selector);
-			}
-			
-			#else
-			if (press_count == DEVICE_SILENT) {
-				DBG_LOG("\r\nDevice to silent");
-			}
-			else if (press_count == DEVICE_MUTE) {
-				DBG_LOG("\r\nDevice to Mute Once");
-			}
-			else if (press_count == DEVICE_NORMAL) {
-				DBG_LOG("\r\nDevice to cancel mute");
-			}
-			else if (press_count == READ_REQUEST) {
-				DBG_LOG("\r\nreading the alert status and ringer setting");
-				if ((pas_client_read_ringer_setting_char()) != AT_BLE_SUCCESS) {
-					DBG_LOG("reading ringer control point invocation failed");
+				else if(battery_level == BATTERY_MIN_LEVEL)
+				{
+					battery_flag = true;
 				}
-				
-				if ((pas_client_read_alert_status_char()) != AT_BLE_SUCCESS) {
-					DBG_LOG("reading alert status invocation failed");
+				if(battery_flag)
+				{
+					battery_level++;
 				}
-
-				press_count = DEVICE_SILENT;
-				continue;
+				else
+				{
+					battery_level--;
+				}*/
 			}
-
-			pas_client_write_ringer_control_point(press_count);
-			press_count++;
-			#endif
 		}
 	}
-
-	return 0;
-}*/
+	//htp_temperature_read();
+	
+}
