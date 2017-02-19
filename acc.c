@@ -1,100 +1,30 @@
-/**************************************************************************//**
- * @file
- * @brief Empty Project
- * @author Energy Micro AS
- * @version 3.20.2
- ******************************************************************************
- * @section License
- * <b>(C) Copyright 2014 Silicon Labs, http://www.silabs.com</b>
- *******************************************************************************
- *
- * This file is licensed under the Silicon Labs Software License Agreement. See 
- * "http://developer.silabs.com/legal/version/v11/Silicon_Labs_Software_License_Agreement.txt"  
- * for details. Before using this software for any purpose, you must agree to the 
- * terms of that agreement.
- *
- ******************************************************************************/
-#include <stdint.h>
-#include <stdbool.h>
-#include "em_device.h"
-#include "em_chip.h"
-#include "em_i2c.h"
-#include "em_cmu.h"
-#include "em_emu.h"
-#include "em_gpio.h"
-#include "em_timer.h"
-#include "em_int.h"
-#include "em_leuart.h"
-unsigned int sleep_block_counter[5];
+#include "acc.h"
 
-#define SDAport gpioPortD
-#define SDApin  6
-#define SCLport gpioPortD
-#define SCLpin  7
-#define LEDpin 2
-#define LEDport gpioPortE
-#define intpin 3
-#define intport gpioPortD
-#define powerport gpioPortD
-#define powerpin 0
-#define LETIMER0_ENERGY_MODE EM2
-#define leuaert_baud 9600
-#define leuart_databits  leuartDatabits8
-#define leuartstopbits leuartStopbits1
-#define LEUARTport gpioPortD
-#define LEUARTpin 4
-#define LEDSetCMD 65
-#define LEDResetCMD 66
-
-//#define slaveadd 0x39<<1
-#define writebit 0
-#define readbit  1
-int data,flag1,dat,date,dates;
-#define SA0 1
-#if SA0
-#define SLAVE_ADDRESS 0x1D<<1  // SA0 is high, 0x1C if low
-#else
-#define SLAVE_ADDRESS 0x1C<<1
-#endif
-typedef enum address_t{
-	CTRL_REG1=0x2A,
-	CTRL_REG2=0x2B,
-	DEBOUNCE_CNT=0x18,
-	TRANSIENT_THS=0x1F,
-	TRANSIENT_COUNT=0x20,
-	CTRL_REG4=0x2D,
-	CTRL_REG5=0x2E,
-	TRANSIENT_SRC=0x1E
-}address;
-
-void leuart0_setup(void)
+/*void leuart0_setup(void)
 {
-   //if(LETIMER0_ENERGY_MODE==EM2)
 	 CMU_ClockSelectSet(cmuClock_LFB, cmuSelect_LFXO);  //lfxo clock for em2
-   //else
-	//CMU_ClockSelectSet(cmuClock_LFB, cmuSelect_LFRCO); //lfrco clock for em3
 
 	 CMU_ClockEnable(cmuClock_LEUART0, true);
 
 	LEUART_Init_TypeDef leuart0Init =
  {
-   .enable   = leuartEnableTx,     /* Activate data reception on LEUn_RX pin. */
-   .refFreq  = 0,                  /* Inherit the clock frequenzy from the LEUART clock source */
-   .baudrate = leuaert_baud,               /* Baudrate = 9600 bps */
-   .databits = leuartDatabits8,    /* Each LEUART frame containes 8 databits */
-   .parity   = leuartNoParity,     /* No parity bits in use */
-   .stopbits = leuartstopbits,    /* Setting the number of stop bits in a frame to 2 bitperiods */
+   .enable   = leuartEnableTx,
+   .refFreq  = 0,
+   .baudrate = leuaert_baud,
+   .databits = leuartDatabits8,
+   .parity   = leuartNoParity,
+   .stopbits = leuartstopbits,
   };
  LEUART_Reset(LEUART0);
  LEUART_Init(LEUART0, &leuart0Init);
  LEUART0->ROUTE = LEUART_ROUTE_TXPEN |
-                    LEUART_ROUTE_LOCATION_LOC0;
+                  LEUART_ROUTE_LOCATION_LOC0;
 
 
- GPIO_PinModeSet(LEUARTport,            /* Port */
-                   LEUARTpin,                    /* Port number */
-                   gpioModePushPull,    /* Pin mode is set to input only, with pull direction given bellow */
-                   1);                   /* Pull direction is set to pull-up */
+ GPIO_PinModeSet(LEUARTport,
+                   LEUARTpin,
+                   gpioModePushPull,
+                   1);
  LEUART0->IEN|=LEUART_IEN_TXBL;
  NVIC_ClearPendingIRQ(LEUART0_IRQn);
 }
@@ -109,69 +39,7 @@ void LEUART0_IRQHandler(void)
     LEUART0->TXDATA=67;
     NVIC_DisableIRQ(LEUART0_IRQn);
 }
-
-void blockSleepMode(unsigned int sleepstate) //block sleep mode
-{
-	INT_Disable();
-	sleep_block_counter[sleepstate]++;
-	INT_Enable();
-}
-//disclaimer: I admit Ive taken this routine from simplicity studio
-void unblockSleepMode(unsigned int sleepstate) // unblock sleep mode
-{	INT_Disable();
-	if(sleep_block_counter[sleepstate]>0)
-	{
-	sleep_block_counter[sleepstate]--;
-	}
-	else
-		sleep_block_counter[sleepstate]=0;
-	INT_Enable();
-}
-void sleep(void) //sleep routine
-{
-	if(sleep_block_counter[0]>0)
-	{ return;
-	}
-	else if(sleep_block_counter[1]>0)
-	{ EMU_EnterEM1();
-	}
-	else if(sleep_block_counter[2]>0)
-	{ EMU_EnterEM2(true);
-	}
-	else if(sleep_block_counter[3]>0)
-	{ EMU_EnterEM3(true);
-	}
-	else
-	{EMU_EnterEM4();
-	}
-
-}
-void powerup(void)
-
-{
-		CMU_ClockEnable(cmuClock_TIMER0,true);
-        TIMER_Init_TypeDef timerInit0 =
-		  {
-		    .enable     = false,
-		    .debugRun   = false,
-		    .prescale   = timerPrescale1,
-		    .clkSel     = timerClkSelHFPerClk,
-		    .fallAction = timerInputActionNone,
-		    .riseAction = timerInputActionNone,
-		    .mode       = timerModeUp,
-		    .dmaClrAct  = false,
-		    .quadModeX4 = false,
-		    .oneShot    = true,
-		    .sync       = false,
-		  };
-		 TIMER_Init(TIMER0, &timerInit0);
-		 TIMER0->CNT=0x0000;
-		 TIMER_Enable(TIMER0,true);
-
-		 while(TIMER0->CNT <= 28000);
-
-		 TIMER_Enable(TIMER0,false);
-}
+*/
 
 void I2C0_setup(void)
 {
@@ -207,13 +75,9 @@ void I2C0_setup(void)
 
 	       GPIO_PinModeSet(SCLport,SCLpin, gpioModeWiredAnd, 1);
    }
-  // I2C0->IEN|=I2C_IEN_NACK;
-   //I2C0->IEN|=I2C_IEN_ACK;
-   //I2C0->IEN|=I2C_IEN_RXDATAV;
-  // NVIC_ClearPendingIRQ(I2C0_IRQn);
-   //NVIC_EnableIRQ(I2C0_IRQn);
+
 }
-void write(int address,int value)
+void writeacc(int address,int value)
 {
 	 I2C0->CMD  |= I2C_CMD_START;
 	 I2C0->TXDATA =SLAVE_ADDRESS|writebit;     //write slave device address with write bit
@@ -233,7 +97,7 @@ void write(int address,int value)
 	 I2C0->CMD  |= I2C_CMD_STOP;
 
 }
-int read(int address)
+int readacc(int address)
 {
 	 I2C0->CMD  |= I2C_CMD_START;						//write slave device address with write bit
 	 I2C0->TXDATA =SLAVE_ADDRESS|writebit;
@@ -261,87 +125,38 @@ int read(int address)
 
 
 }
-void work()
+void workacc()
 {
-	/*write(0x2A,0x18);
-	write(0x2B,0x18);
-	write(0x1D,0x12);
-	write(0x1F,0x0F);
-	write(0x20,0x05);
-	write(0x2D,0x20);
-	write(0x2E,0x20);*/
-	write(CTRL_REG1,0x18);
-		write(CTRL_REG2,0x18);
-		write(DEBOUNCE_CNT,0x12);
-		write(TRANSIENT_THS,0x0F);
-		write(TRANSIENT_COUNT,0x05);
-		write(CTRL_REG4,0x20);
-		write(CTRL_REG5,0x20);
 
-
-
-//	dat=read(0x1D);
-	//dat|=0x01;
-	//for(int i=0;i<10000;i++);
-	write(0x2A,25);
-	//for(int i=0;i<10000;i++);
-	//date =read(0x1F);
+	    writeacc(CTRL_REG1,0x18);
+		writeacc(CTRL_REG2,0x18);
+		writeacc(DEBOUNCE_CNT,0x12);
+		writeacc(TRANSIENT_THS,0x0F);
+		writeacc(TRANSIENT_COUNT,0x05);
+		writeacc(CTRL_REG4,0x20);
+		writeacc(CTRL_REG5,0x20);
+     	writeacc(0x2A,25);
 
 	GPIO_ExtIntConfig(intport,intpin,1,false,true,true);
-	//NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
-		// NVIC_EnableIRQ(GPIO_ODD_IRQn);
+
 
 }
-void GPIO2_setup()
+void GPIOacc_setup()
 {
-	GPIO_PinModeSet(powerport, powerpin, gpioModePushPull, 1);    //enable GPIO for pin and port providing power
-	GPIO_PinOutSet(powerport, powerpin);
+
 	GPIO_PinModeSet(intport, intpin, gpioModeInput, 1);    //enable GPIO for pin and port for interrupts
 	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0);
-	//GPIO_ExtIntConfig(intport,intpin,1,false,true,false);
 
+	 NVIC_ClearPendingIRQ(GPIO_EVEN_IRQn);
+	 NVIC_EnableIRQ(GPIO_EVEN_IRQn);
 
-	 NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
-	 NVIC_EnableIRQ(GPIO_ODD_IRQn);
-
-    // GPIO->IEN=0x02;
 }
-void GPIO_ODD_IRQHandler(void)
+void GPIO_EVEN_IRQHandler(void)
 {
   /* clear flag for PC9 interrupt */
   int flags8=GPIO->IF;
   GPIO->IFC=flags8;
- // date=read(0x0C);
-  //if(date==0x20)
-  //{
   NVIC_EnableIRQ(LEUART0_IRQn);
-  dates= read(TRANSIENT_SRC);
-	 GPIO_PinOutToggle(LEDport,LEDpin);
-  //}
+  dates= readacc(TRANSIENT_SRC);
+  GPIO_PinOutToggle(LEDport,LEDpin);
  }
-
-
-/**************************************************************************//**
- * @brief  Main function
- *****************************************************************************/
-int main(void)
-{
-  /* Chip errata */
-  CHIP_Init();
-  //blockSleepMode(3);
-  //EMU_EnterEM3(true);
-  I2C0_setup();
-  GPIO2_setup();
-  powerup();
- leuart0_setup();
-  work();
-  EMU_EnterEM2(true);
-  /* Infinite loop */
-  while (1) {
-	 // GPIO_ExtIntConfig(intport,1,1,false,true,true);
-	//  NVIC_EnableIRQ(GPIO_ODD_IRQn);
-
-	 EMU_EnterEM2(true);
-	  //sleep();
-  }
-}
