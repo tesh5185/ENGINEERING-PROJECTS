@@ -22,11 +22,7 @@
 //disclaimer: I admit Ive taken this routine from simplicity studio
 
 #include "myproject.h"
-#include "cirbuf.h"
-#include <stdlib.h>
-#include "acc.h"
-#include "lesense_letouch_config.h"
-#include "lesense_letouch.h"
+
 struct CirBuf cb1;
 uint8_t *rd;
 uint8_t read1[1];
@@ -678,14 +674,23 @@ void GPIO_EVEN_IRQHandler(void)
   dates= readacc(TRANSIENT_SRC);
 
   GPIO_PinOutToggle(LEDport,LEDpin2);
-  INT_Disable();
-  CBWrite(&cb1,65);
-  CBWrite(&cb1,76);
-  //CBWrite(&cb1,69);
-  CBWrite(&cb1,82);
-  CBWrite(&cb1,84);
-  INT_Enable();
- // NVIC_EnableIRQ(LEUART0_IRQn);
+  if (cirbuf==1)
+  {
+	  INT_Disable();
+	  CBWrite(&cb1,65);
+	  CBWrite(&cb1,76);
+	  CBWrite(&cb1,82);
+	  CBWrite(&cb1,84);
+	  INT_Enable();
+  }
+  else
+  {
+	  temp10=65;
+	  temp10=76;
+	  temp10=82;
+	  temp10=84;
+  }
+  NVIC_EnableIRQ(LEUART0_IRQn);
  }
 
 void i2c1_setup(void)
@@ -1008,10 +1013,12 @@ void LEUART0_IRQHandler(void)
 	LEUART_IntClear(LEUART0, leuartif);
     LEUART0->CTRL|=LEUART_CTRL_LOOPBK;  //enable loopback for verification
     LEUART0->CMD|=LEUART_CMD_RXEN;    //enable reception
-
+if(cirbuf==1)
+{
 if (ts==0)								//send data
-	{CBRead(&cb1,rd);
-        LEUART0->TXDATA=read1[0];
+	{
+	CBRead(&cb1,rd);
+     LEUART0->TXDATA=read1[0];
 	}
 if (ts==1)
 	{
@@ -1026,11 +1033,28 @@ if(ts==3)
 	{CBRead(&cb1,rd);
 	LEUART0->TXDATA=read1[0];
 	}
-/*if(ts==4)
+}
+else
+{
+if (ts==0)								//send data
 	{
 	CBRead(&cb1,rd);
-	LEUART0->TXDATA=read1[0];
-	}*/
+     LEUART0->TXDATA=temp10;
+	}
+if (ts==1)
+	{
+	CBRead(&cb1,rd);
+	 LEUART0->TXDATA=temp11;
+	}
+if (ts==2)
+	{CBRead(&cb1,rd);
+	 LEUART0->TXDATA=temp12;
+	}
+if(ts==3)
+	{CBRead(&cb1,rd);
+	LEUART0->TXDATA=temp13;
+	}
+}
 while((LEUART0->IF & LEUART_IF_TXC)==0);
 //unblockSleepMode(2);
 ts++;
