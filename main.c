@@ -259,12 +259,12 @@ void LETIMER0_IRQHandler(void)
 	    ADC_Start(ADC0,adcStartSingle);              // start single conversion
 	    blockSleepMode(1);                     //enter blocksleepmode1
 	   }
-	   //else
-	  // { // blockSleepMode(EM1);
-		  /* if(load_period==0)
+	   else
+	   { // blockSleepMode(EM1);
+		   if(load_period==0)
 	      {
 	      i2c1_setup(); //i2c setup
-	      GPIO2_setup();// gpio pins fori2c
+	      GPIO2_setup();// gpio pins for i2c
 	      powerup();  //power for stabilization
 	      work();
 	      load_period++;  //increment period
@@ -285,9 +285,9 @@ void LETIMER0_IRQHandler(void)
 	    	  load_period=0;
 	    	  unblockSleepMode(EM1);  // unblock em1
 	    	  blockSleepMode(EM3);    //block em3 for slave
-	      }*/
+	      }
 
-	  // }
+	   }
 		 ADC_Start(ADC0,adcStartSingle);              // start single conversion
 			    blockSleepMode(1);                     //enter blocksleepmode1
 
@@ -871,6 +871,7 @@ if(ts==3)
 
 if(ts==4)
 	LEUART0->TXDATA=c;
+
 while((LEUART0->IF & LEUART_IF_TXC)==0);
 //unblockSleepMode(2);
 ts++;
