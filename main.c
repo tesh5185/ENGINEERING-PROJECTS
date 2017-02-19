@@ -1099,6 +1099,9 @@ int main(void){
 		      // Turn on LED
 		    if (next ==0)
 		    	{
+		        LETIMER_Enable(LETIMER0,false);
+		      //  I2C_Enable(I2C0,false);
+
 		    //	GPIO_PinModeSet(LEDport, LEDpin2, gpioModePushPull, 1);
 		         next=1;
 		         while(LETOUCH_GetChannelsTouched() != 0);
@@ -1107,6 +1110,8 @@ int main(void){
 		    else{
 		      // Turn off LED
 		      //GPIO_PinModeSet(LEDport, LEDpin2, gpioModePushPull, 0);
+		        LETIMER_Enable(LETIMER0,true);
+		        //I2C_Enable(I2C0,true);
 		      next=0;
 		      while(LETOUCH_GetChannelsTouched() != 0);
 
