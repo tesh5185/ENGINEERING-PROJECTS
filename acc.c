@@ -37,7 +37,7 @@
 //#define slaveadd 0x39<<1
 #define writebit 0
 #define readbit  1
-int data,flag1;
+int data,flag1,dat,date;
 #define SA0 1
 #if SA0
 #define SLAVE_ADDRESS 0x1D<<1  // SA0 is high, 0x1C if low
@@ -133,7 +133,7 @@ void write(int address,int value)
 	 I2C1->CMD  |= I2C_CMD_STOP;
 
 }
-void read(int address)
+int read(int address)
 {
 	 I2C1->CMD  |= I2C_CMD_START;						//write slave device address with write bit
 	 I2C1->TXDATA =SLAVE_ADDRESS|writebit;
@@ -152,17 +152,29 @@ void read(int address)
 	 data=I2C1->RXDATA;
 	 I2C1->CMD |= I2C_CMD_NACK;
 	 I2C1->CMD  |= I2C_CMD_STOP;
-
+     return data;
 
 
 }
 void work()
 {
-	write(0x0E,0x01);
-	write(0x1F,0x02);
-	write(0x0F,0x03);
-	read(0x0F);
-	//read(0x82);
+	write(0x2A,0x18);
+	write(0x1D,0x16);
+	write(0x1F,0x0F);
+	write(0x20,0x05);
+	write(0x2D,0x20);
+	write(0x2E,0x20);
+
+
+	//dat=read(0x2A);
+	//dat|=0x01;
+	//for(int i=0;i<10000;i++);
+	write(0x2A,25);
+	for(int i=0;i<10000;i++);
+	date =read(0x2A);
+	GPIO_ExtIntConfig(intport,intpin,1,false,true,true);
+	//NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
+		// NVIC_EnableIRQ(GPIO_ODD_IRQn);
 
 }
 void GPIO2_setup()
@@ -171,18 +183,36 @@ void GPIO2_setup()
 	GPIO_PinOutSet(powerport, powerpin);
 	GPIO_PinModeSet(intport, intpin, gpioModeInput, 1);    //enable GPIO for pin and port for interrupts
 	GPIO_PinModeSet(LEDport, LEDpin, gpioModePushPull, 0);
-	GPIO_ExtIntConfig		(intport,
-		 			            1,
-		 			            1,
-		 			            true,
-		 			            false,
-		 			            true);
+	//GPIO_ExtIntConfig(intport,intpin,1,true,false,true);
+
 
 	 NVIC_ClearPendingIRQ(GPIO_ODD_IRQn);
 	 NVIC_EnableIRQ(GPIO_ODD_IRQn);
 
     // GPIO->IEN=0x02;
 }
+void GPIO_ODD_IRQHandler(void)
+{
+  /* clear flag for PC9 interrupt */
+  int flags8=GPIO->IF;
+  GPIO->IFC=flags8;
+ // GPIO_ExtIntConfig( gpioPortD, 1, 1,true,false, false );
+
+  /*I2C1->TXDATA =slave_address<<1|writeslave;
+      I2C1->CMD  |= I2C_CMD_START;
+      while((I2C1->IF & I2C_IF_ACK) == 0);
+      int flag3 = I2C1->IF;
+      I2C1->IFC=flag3;
+      write(data0low_add);
+  read(slave_address<<1|readslave);
+ int r= 256*cd+ab;
+ if (r<0x000f)
+	 GPIO_PinOutSet(gpioPortE,2);
+ int s=256*gh+ef;
+ if (s>0x0800)
+	 GPIO_PinOutClear(gpioPortE,2);*/
+}
+
 
 /**************************************************************************//**
  * @brief  Main function
@@ -199,5 +229,7 @@ int main(void)
 
   /* Infinite loop */
   while (1) {
+	  //GPIO_ExtIntConfig(intport,1,1,true,false,true);
+
   }
 }
