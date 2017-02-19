@@ -22,6 +22,12 @@
 //disclaimer: I admit Ive taken this routine from simplicity studio
 
 #include "myproject.h"
+#include "cirbuf.h"
+#include <stdlib.h>
+#include <acc.h>
+struct CirBuf cb1;
+uint8_t *rd;
+uint8_t read1[1];
 void blockSleepMode(unsigned int sleepstate) //block sleep mode
 {
 	INT_Disable();
@@ -271,7 +277,7 @@ void LETIMER0_IRQHandler(void)
 	      }
 	      else if (load_period==1)
 	      {
-	    	 // GPIO_ExtIntConfig( gpioPortD, 1, 1, false, true, true );
+
 	    	  load_period++;
 	      }
 	      else if(load_period==2)
@@ -280,8 +286,8 @@ void LETIMER0_IRQHandler(void)
 	    	  GPIO->IFC = GPIO->IF; //clear flags
 	    	  //GPIO_PinModeSet(SDAport,SCLpin, gpioModeDisabled, 1); //disable SCL pin
 	    	  	//GPIO_PinModeSet(SDAport,SDApin, gpioModeDisabled, 1); //disable SDA pin
-	    	  	GPIO_ExtIntConfig( gpioPortD, 1, 1, false, true, false );//disable interrupts
-	    	  GPIO_PinOutClear(gpioPortD, 0); //clear power pin
+	    	  	GPIO_ExtIntConfig( intport, intpin, 1, false, true, false );//disable interrupts
+	    	  GPIO_PinOutClear(powerport, powerpin); //clear power pin
 	    	  load_period=0;
 	    	  unblockSleepMode(EM1);  // unblock em1
 	    	  blockSleepMode(EM3);    //block em3 for slave
@@ -472,7 +478,7 @@ void LED_state(bool state)
      { GPIO_PinOutClear(LEDport,LEDpin);
      c=LEDResetCMD;
 }
-	//NVIC_EnableIRQ(LEUART0_IRQn);
+
 }
 //disclaimer: I admit Ive refrenced this routine from simplicity studio
 void setupDma(void)
@@ -607,6 +613,11 @@ void finaltemp()
      temp13=temp1/10;
      temp12=temp13%10;
      temp13=temp13/10;
+     CBWrite(&cb1,temp10);
+     CBWrite(&cb1,temp11);
+     CBWrite(&cb1,temp12);
+     CBWrite(&cb1,temp13);
+     CBWrite(&cb1,c);
      NVIC_EnableIRQ(LEUART0_IRQn);
      if (temp <lowertemp|| temp>uppertemp)
     	GPIO_PinOutSet(LEDport,LEDpin2);
@@ -677,9 +688,9 @@ void i2c1_setup(void)
    }
    for(int i=0;i<=9;i++)
    {
-	   GPIO_PinModeSet(gpioPortC, 5, gpioModeWiredAnd, 0);
+	   GPIO_PinModeSet(SDAport, SCLpin, gpioModeWiredAnd, 0);
 
-	       GPIO_PinModeSet(gpioPortC, 5, gpioModeWiredAnd, 1);
+	       GPIO_PinModeSet(SDAport, SCLpin, gpioModeWiredAnd, 1);
    }
 
 }
@@ -737,13 +748,10 @@ void work(void)
       I2C1->CMD = I2C_CMD_ABORT ;
 
        }
+   // GPIO->IFC = 0x02;
 
-
-
-      GPIO->IFC = 0x02;
-
-      GPIO->IEN = 0x02;
-      GPIO_ExtIntConfig( gpioPortD, 1, 1, false, true, true );
+     // GPIO->IEN = 0x02;
+      GPIO_ExtIntConfig( intport, intpin, 1, false, true, true );
  	}
 void read(int y)
 {
@@ -815,6 +823,123 @@ void powerup(void)
 		 TIMER_Enable(TIMER0,false);
 }
 
+eBuffState BufferState(struct CirBuf *cb){
+
+	if(CBLengthData(cb) == (cb->size - 1))
+	{
+		e_buffer_state = BufferFull;
+                //printf("BufferFull\n");
+	}
+	else if(CBLengthData(cb) == 0)
+	{
+		e_buffer_state = BufferEmpty;
+              // printf("BufferEmpty\n");
+	}
+	else
+	{
+		e_buffer_state = BufferAvailable;
+                //printf("BufferAvailable\n");
+	}
+	return e_buffer_state;
+}
+
+//prints the buffer
+
+void printBuf(struct CirBuf *cb){
+	int i;
+	for(i=0;i<cb->size;i++){
+		printf("[%d]\t",cb->buf[i]);
+	}
+	printf("\n");
+}
+
+//gets the length of data in the buffer
+uint16_t CBLengthData(struct CirBuf *cb){
+	uint8_t lengthData = ((cb->write - cb->read) & (cb->size - 1));
+	//printf("length of data in buffer is: %d\n", lengthData );
+	return lengthData;
+}
+
+//function to check if the buffer is full or no
+eBuffState Bufferfull(struct CirBuf *cb){
+	if(CBLengthData(cb) == (cb->size - 1))
+	{
+		e_buffer_state = BufferFull;
+	}
+	else
+	{
+		e_buffer_state = BufferAvailable;
+	}
+	return e_buffer_state;
+}
+
+//function to verify if the buffer is empty or no
+
+eBuffState Bufferempty(struct CirBuf *cb){
+	if(CBLengthData(cb) == 0)
+	{
+                e_buffer_state = BufferFull;
+        }
+        else
+        {
+                e_buffer_state = BufferAvailable;
+        }
+        return e_buffer_state;
+}
+
+
+//function to write in the buffer
+eBuffState CBWrite(struct CirBuf *cb, uint8_t data){
+
+	if(BufferState(cb) == BufferFull)
+	{
+		printf("BufferFull\n");
+		return BufferFull;
+	}
+	else
+	{
+		printf("Buffer is Available\n");
+	}
+
+	if (NULL != cb->buf)
+	{
+		cb->buf[cb->write] = data;
+		cb->write = (cb->write + 1) & (cb->size-1);
+		printBuf(cb);
+	}
+	else
+	{
+		printf("Write buffer pointer is null\n");
+	}
+
+	return BufferAvailable;
+}
+
+//function to read from the buffer
+eBuffState CBRead(struct CirBuf *cb, uint8_t *data){
+
+	if(BufferState(cb) == BufferEmpty) {
+		printf("BufferEmpty\n");
+		return BufferEmpty;
+	}
+	else
+	{
+		printf("Buffer is not empty\n");
+
+	}
+	if (NULL != cb->buf)
+	{
+	*data = cb->buf[cb->read];
+	cb->read = (cb->read + 1) & (cb->size - 1);
+	printf("Data Read at index %d is %d\n", cb->read, *data);
+	}
+	else
+	{
+		printf("Pointer is null\n");
+	}
+	return BufferAvailable;
+}
+
 void leuart0_setup(void)
 {
    if(LETIMER0_ENERGY_MODE==EM2)
@@ -857,21 +982,28 @@ void LEUART0_IRQHandler(void)
     LEUART0->CTRL|=LEUART_CTRL_LOOPBK;  //enable loopback for verification
     LEUART0->CMD|=LEUART_CMD_RXEN;    //enable reception
 
-if (ts==0)                              //send data
-        LEUART0->TXDATA=temp10;
-
+if (ts==0)								//send data
+	{CBRead(&cb1,rd);
+        LEUART0->TXDATA=read1[0];
+	}
 if (ts==1)
-	 LEUART0->TXDATA=temp11;
-
+	{
+	CBRead(&cb1,rd);
+	 LEUART0->TXDATA=read1[0];
+	}
 if (ts==2)
-	 LEUART0->TXDATA=temp12;
-
+	{CBRead(&cb1,rd);
+	 LEUART0->TXDATA=read1[0];
+	}
 if(ts==3)
-	LEUART0->TXDATA=temp13;
-
+	{CBRead(&cb1,rd);
+	LEUART0->TXDATA=read1[0];
+	}
 if(ts==4)
-	LEUART0->TXDATA=c;
-
+	{
+	CBRead(&cb1,rd);
+	LEUART0->TXDATA=read1[0];
+	}
 while((LEUART0->IF & LEUART_IF_TXC)==0);
 //unblockSleepMode(2);
 ts++;
@@ -879,7 +1011,8 @@ if (ts==5)
  {
 	NVIC_DisableIRQ(LEUART0_IRQn);
     ts=0;
-
+   cb1.write=0;
+   cb1.read=0;
  }
 }
 int main(void){
@@ -891,16 +1024,32 @@ int main(void){
 	blockSleepMode(3);
 	if (i2cuse ==0) setupACMP();
 
+	uint8_t *wr=malloc(1*sizeof(char));
+
+	rd=read1;
+	//struct CirBuf cb1;
+	//memset(&cb1, 0, sizeof(cb1));
+    cb1.buf=wr;
+	cb1.size=8;
+	cb1.read=0;
+	cb1.write=0;
 
 	CMU_setup();
 	GPIO_setup();
-	leuart0_setup();
+	I2C0_setup();
+	GPIOacc_setup();
+	workacc();
+
+	setupAdc();
+
+	//leuart0_setup();
 	if(DMAuse==1) setupDma();
 
-    setupAdc();
+
 
     LETIMER0_setup();
     LETIMER_Enable(LETIMER0,true);
+
 	while(1)
 	{
 		if (DMAuse==0 && countADC>0 && countADC<=ADCSAMPLES)//switch off if 1000 conversions done
