@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "em_device.h"
 #include "em_chip.h"
 #include "em_int.h"
@@ -106,17 +107,17 @@ int ab,cd,ef,gh;
 void TIMER0_setup(void);
 void TIMER1_setup(void);
 void setupACMP(void);
-void blockSleepMode(unsigned int sleepstate);
-void unblockSleepMode(unsigned int sleepstate);
-void sleep(void);
+static inline void blockSleepMode(unsigned int sleepstate);
+static inline void unblockSleepMode(unsigned int sleepstate);
+static inline void sleep(void);
 long LETIMERCAL_setup();
 long LETIMERCAL1_setup();
 void LETIMER0_setup(void);
 void CMU_setup(void);
 void GPIO_setup(void);
 void LED_state(bool state);
-void finaltemp();
-float convertToCelcius(int32_t adcSample); // consverts the temperature to celciu
+static inline void finaltemp();
+static inline float convertToCelcius(int32_t adcSample); // consverts the temperature to celciu
 void i2c1_setup(void);  // gives clock to the i2c and initial setup on board
 void work(void);// carries out all the read and write functions
 void write(int z); // function to write to a particular address, takes data or address

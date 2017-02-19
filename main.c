@@ -17,6 +17,7 @@
  * 2. Altered source versions must be plainly marked as such, and must not be
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
+ * Code written by Tejas Shanbhag
  ******************************************************************************/
 /*disclaimer: some functions are credited to silocon labs : blockSleepMode, unBlockSleepMode, sleep, converToCelcius*/
 //disclaimer: I admit Ive taken this routine from simplicity studio
@@ -24,7 +25,7 @@
 #include "myproject.h"
 
 
-void blockSleepMode(unsigned int sleepstate) //block sleep mode
+static inline void blockSleepMode(unsigned int sleepstate) //block sleep mode
 {
 	INT_Disable();
 	sleep_block_counter[sleepstate]++;
@@ -42,7 +43,7 @@ void unblockSleepMode(unsigned int sleepstate) // unblock sleep mode
 	INT_Enable();
 }
 //disclaimer: I admit Ive taken this routine from simplicity studio
-void sleep(void) //sleep routine
+static inline void sleep(void) //sleep routine
 {
 	if(sleep_block_counter[0]>0)
 	{
@@ -549,8 +550,20 @@ void transferComplete(unsigned int channel, bool primary, void *user)
   transferActive = false; //transfer complete
   finaltemp();
 }
+ static inline float convertToCelcius(int32_t adcSample)
+{
+	float temp;
+   float cal_temp_0 = (float)((DEVINFO->CAL &_DEVINFO_CAL_TEMP_MASK)
+                >>_DEVINFO_CAL_TEMP_SHIFT);
+   float cal_value_0 = (float)((DEVINFO->ADC0CAL2
+		          &_DEVINFO_ADC0CAL2_TEMP1V25_MASK)
+		          >>_DEVINFO_ADC0CAL2_TEMP1V25_SHIFT);
+   float t_grad = -6.27;
+   temp = (cal_temp_0-((cal_value_0-adcSample)/t_grad));
+   return temp;
+}
 
-void finaltemp()
+static inline void finaltemp()
 {
     for (int i=0;i<ADCSAMPLES;i++)
     {
@@ -558,6 +571,7 @@ void finaltemp()
     }
     average=average/ADCSAMPLES;
     float temp = convertToCelcius(average);
+
     if(temp<0)   //check if temperature negative
 	{
 	   temp10=67;
@@ -578,18 +592,6 @@ void finaltemp()
      CBWrite(&cb1,temp13);
      INT_Enable();
      NVIC_EnableIRQ(LEUART0_IRQn);
-}
-float convertToCelcius(int32_t adcSample)
-{
-	float temp;
-    float cal_temp_0 = (float)((DEVINFO->CAL &_DEVINFO_CAL_TEMP_MASK)
-                 >>_DEVINFO_CAL_TEMP_SHIFT);
-    float cal_value_0 = (float)((DEVINFO->ADC0CAL2
-		          &_DEVINFO_ADC0CAL2_TEMP1V25_MASK)
-		          >>_DEVINFO_ADC0CAL2_TEMP1V25_SHIFT);
-    float t_grad = -6.27;
-    temp = (cal_temp_0-((cal_value_0-adcSample)/t_grad));
-    return temp;
 }
 
 void GPIO_ODD_IRQHandler(void)
@@ -1036,21 +1038,34 @@ int main(void){
 	cb1.size=8;
 	cb1.read=0;
 	cb1.write=0;
+	void (*init)(void);
+	init=&CMU_setup;
+	(*init)();
+	//init++;
+	init=&GPIO_setup;
 
-	CMU_setup();			//setup clocks
-	GPIO_setup();			//setup GPIO pins
+	//CMU_setup();			//setup clocks
+	//(*(init--))();
+	(*init)();
+	//GPIO_setup();			//setup GPIO pins
 
-	I2C0_setup();
-	GPIOacc_setup();
-	workacc();
-	leuart0_setup();
+	init=&I2C0_setup;
+	(*init)();
+	init=&GPIOacc_setup;
+	(*init)();
+	init=&workacc;
+	(*init)();
+	init=&leuart0_setup;
+	(*init)();
 	#ifdef DMAuse
-	setupDma();  // setup dma if dmause is high
+	init=&setupDma;  // setup dma if dmause is high
+	(*init)();
 	#endif
-	setupAdc();					//setup ADC
+	init=&setupAdc;					//setup ADC
+	(*init)();
 
-
-    LETIMER0_setup();
+    init=LETIMER0_setup;
+    (*init)();
     LETIMER_Enable(LETIMER0,true);
     uint16_t channels_touched = 0;
     	int  next =0;
