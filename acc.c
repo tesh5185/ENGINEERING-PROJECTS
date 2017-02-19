@@ -24,8 +24,9 @@
 #include "em_gpio.h"
 #include "em_timer.h"
 #include "em_int.h"
-
+#include "em_leuart.h"
 unsigned int sleep_block_counter[5];
+
 #define SDAport gpioPortD
 #define SDApin  6
 #define SCLport gpioPortD
@@ -36,6 +37,15 @@ unsigned int sleep_block_counter[5];
 #define intport gpioPortD
 #define powerport gpioPortD
 #define powerpin 0
+#define LETIMER0_ENERGY_MODE EM2
+#define leuaert_baud 9600
+#define leuart_databits  leuartDatabits8
+#define leuartstopbits leuartStopbits1
+#define LEUARTport gpioPortD
+#define LEUARTpin 4
+#define LEDSetCMD 65
+#define LEDResetCMD 66
+
 //#define slaveadd 0x39<<1
 #define writebit 0
 #define readbit  1
@@ -46,6 +56,50 @@ int data,flag1,dat,date,dates;
 #else
 #define SLAVE_ADDRESS 0x1C<<1
 #endif
+
+
+void leuart0_setup(void)
+{
+   //if(LETIMER0_ENERGY_MODE==EM2)
+	 CMU_ClockSelectSet(cmuClock_LFB, cmuSelect_LFXO);  //lfxo clock for em2
+   //else
+	//CMU_ClockSelectSet(cmuClock_LFB, cmuSelect_LFRCO); //lfrco clock for em3
+
+	 CMU_ClockEnable(cmuClock_LEUART0, true);
+
+	LEUART_Init_TypeDef leuart0Init =
+ {
+   .enable   = leuartEnableTx,     /* Activate data reception on LEUn_RX pin. */
+   .refFreq  = 0,                  /* Inherit the clock frequenzy from the LEUART clock source */
+   .baudrate = leuaert_baud,               /* Baudrate = 9600 bps */
+   .databits = leuartDatabits8,    /* Each LEUART frame containes 8 databits */
+   .parity   = leuartNoParity,     /* No parity bits in use */
+   .stopbits = leuartstopbits,    /* Setting the number of stop bits in a frame to 2 bitperiods */
+  };
+ LEUART_Reset(LEUART0);
+ LEUART_Init(LEUART0, &leuart0Init);
+ LEUART0->ROUTE = LEUART_ROUTE_TXPEN |
+                    LEUART_ROUTE_LOCATION_LOC0;
+
+
+ GPIO_PinModeSet(LEUARTport,            /* Port */
+                   LEUARTpin,                    /* Port number */
+                   gpioModePushPull,    /* Pin mode is set to input only, with pull direction given bellow */
+                   1);                   /* Pull direction is set to pull-up */
+ LEUART0->IEN|=LEUART_IEN_TXBL;
+ NVIC_ClearPendingIRQ(LEUART0_IRQn);
+}
+void LEUART0_IRQHandler(void)
+{
+	while((LEUART0->SYNCBUSY)!=0);
+	int leuartif = LEUART_IntGet(LEUART0);  //clear flags
+	LEUART_IntClear(LEUART0, leuartif);
+    LEUART0->CTRL|=LEUART_CTRL_LOOPBK;  //enable loopback for verification
+    LEUART0->CMD|=LEUART_CMD_RXEN;    //enable reception
+    LEUART0->TXDATA=66;
+    LEUART0->TXDATA=67;
+    NVIC_DisableIRQ(LEUART0_IRQn);
+}
 
 void blockSleepMode(unsigned int sleepstate) //block sleep mode
 {
@@ -243,7 +297,7 @@ void GPIO_ODD_IRQHandler(void)
  // date=read(0x0C);
   //if(date==0x20)
   //{
- // NVIC_DisableIRQ(GPIO_ODD_IRQn);
+  NVIC_EnableIRQ(LEUART0_IRQn);
   dates= read(0x1E);
 	 GPIO_PinOutToggle(LEDport,LEDpin);
   //}
@@ -262,15 +316,15 @@ int main(void)
   I2C0_setup();
   GPIO2_setup();
   powerup();
-
+ leuart0_setup();
   work();
-  EMU_EnterEM3(true);
+  EMU_EnterEM2(true);
   /* Infinite loop */
   while (1) {
 	 // GPIO_ExtIntConfig(intport,1,1,false,true,true);
 	//  NVIC_EnableIRQ(GPIO_ODD_IRQn);
 
-	 EMU_EnterEM3(true);
-	  ///sleep();
+	 EMU_EnterEM2(true);
+	  //sleep();
   }
 }
