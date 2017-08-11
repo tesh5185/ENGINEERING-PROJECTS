@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#include <iostream>
 #include <getopt.h>             /* getopt_long() */
 
 #include <fcntl.h>              /* low-level i/o */
@@ -32,16 +32,51 @@
 #include <linux/videodev2.h>
 
 #include <time.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <sched.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+ //#include <opencv2/imgcodecs/imgcodecs.hpp>
 
+#include <opencv2/photo/photo.hpp>
+using namespace cv;
+using namespace std;
+
+#define NUM_THREADS 1
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 #define COLOR_CONVERT
-#define HRES 320
-#define VRES 240
-#define HRES_STR "320"
-#define VRES_STR "240"
+#define HRES 640
+#define VRES 480
+#define HRES_STR "640"
+#define VRES_STR "480"
+#define frame_capture 0
+#define compression
+
+void compresstojpeg(void);
+unsigned int *frameno;
+//Mat loadagain;
 
 // Format is used by a number of functions, so made as a file global
 static struct v4l2_format fmt;
+
+typedef struct threadParams_t
+  {
+  int threadIdx;
+  } threadParams_t;
+
+
+
+
+pthread_t threads[NUM_THREADS];
+threadParams_t threadParams[NUM_THREADS];
+pthread_attr_t rt_sched_attr[NUM_THREADS];
+struct sched_param rt_param[NUM_THREADS];
+struct sched_param nrt_param;
+// Format is used by a number of functions, so made as a file global
+
 
 enum io_method 
 {
@@ -65,7 +100,7 @@ struct buffer          *buffers;
 static unsigned int     n_buffers;
 static int              out_buf;
 static int              force_format=1;
-static int              frame_count = 500;
+static int              frame_count = 50;
 
 static void errno_exit(const char *s)
 {
@@ -86,30 +121,34 @@ static int xioctl(int fh, int request, void *arg)
         return r;
 }
 
+
 char ppm_header[]="P6\n#9999999999 sec 9999999999 msec \n"HRES_STR" "VRES_STR"\n255\n";
 char ppm_dumpname[]="test00000000.ppm";
+char jpg_header[]= "#9999999999 sec 9999999999 msec \n"HRES_STR" "VRES_STR"\n";
+char jpg_dumpname[]="comp00000000.jpg";
 
 static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec *time)
 {
     int written, i, total, dumpfd;
-   
+    
+    *frameno=tag;
     snprintf(&ppm_dumpname[4], 9, "%08d", tag);
     strncat(&ppm_dumpname[12], ".ppm", 5);
-    // usleep(1000000);
+   /* snprintf(&jpg_dumpname[4], 9, "%08d", tag);
+    strncat(&jpg_dumpname[12], ".jpg", 5);*/
+    usleep(1000000);
     dumpfd = open(ppm_dumpname, O_WRONLY | O_NONBLOCK | O_CREAT, 00666);
-	printf("Current time is %ld sec %ld nsec\n",time->tv_sec,time->tv_nsec);
+    
     snprintf(&ppm_header[4], 11, "%010d", (int)time->tv_sec);
     strncat(&ppm_header[14], " sec ", 5);
     snprintf(&ppm_header[19], 11, "%010d", (int)((time->tv_nsec)/1000000));
     strncat(&ppm_header[29], " msec \n"HRES_STR" "VRES_STR"\n255\n", 19);
     written=write(dumpfd, ppm_header, sizeof(ppm_header));
-
+    compresstojpeg();
     total=0;
 
     do
     {
-	printf("here\n");
-	usleep(1000000);
         written=write(dumpfd, p, size);
         total+=written;
     } while(total < size);
@@ -118,6 +157,19 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
 
     close(dumpfd);
     
+}
+void compresstojpeg(void)
+{
+    Mat loadagain;
+    //char b[frame_count];
+    //int jpgg=2; 
+    //IplImage* loadagain;
+    snprintf(&jpg_dumpname[4], 9, "%08d", *frameno);
+    strncat(&jpg_dumpname[12], ".jpg", 5);
+    //loadagain = cvLoadImage(ppm_dumpname);
+    //cvSaveImage(b,loadagain,&jpgg);
+    loadagain = imread(ppm_dumpname,1);
+    imwrite( jpg_dumpname, loadagain);
 }
 
 
@@ -444,7 +496,7 @@ static void mainloop(void)
                 if(nanosleep(&read_delay, &time_error) != 0)
                     perror("nanosleep");
                 else
-                    printf("time_error.tv_sec=%ld, time_error.tv_nsec=%ld\n", time_error.tv_sec, time_error.tv_nsec);
+                    //printf("time_error.tv_sec=%ld, time_error.tv_nsec=%ld\n", time_error.tv_sec, time_error.tv_nsec);
 
                 count--;
                 break;
@@ -624,10 +676,10 @@ static void init_mmap(void)
 
                 buffers[n_buffers].length = buf.length;
                 buffers[n_buffers].start =
-                        mmap(NULL /* start anywhere */,
+                        mmap(NULL, // start anywhere 
                               buf.length,
-                              PROT_READ | PROT_WRITE /* required */,
-                              MAP_SHARED /* recommended */,
+                              PROT_READ | PROT_WRITE, // required,
+                              MAP_SHARED, // recommended
                               fd, buf.m.offset);
 
                 if (MAP_FAILED == buffers[n_buffers].start)
@@ -849,7 +901,27 @@ static void open_device(void)
                 exit(EXIT_FAILURE);
         }
 }
+void printscheduler(void)
+  {
+  int schedType;
 
+  schedType = sched_getscheduler(getpid());
+
+  switch(schedType)
+    {
+    case SCHED_FIFO:
+      printf("Pthread Policy is SCHED_FIFO\n");
+      break;
+    case SCHED_OTHER:
+      printf("Pthread Policy is SCHED_OTHER\n");
+      break;
+    case SCHED_RR:
+      printf("Pthread Policy is SCHED_OTHER\n");
+      break;
+    default:
+      printf("Pthread Policy is UNKNOWN\n");
+    }
+  }
 static void usage(FILE *fp, int argc, char **argv)
 {
         fprintf(fp,
@@ -889,7 +961,8 @@ int main(int argc, char **argv)
         dev_name = argv[1];
     else
         dev_name = "/dev/video1";
-
+    int rt_max_prio,rt_min_prio,rc,i=0;
+    frameno=(unsigned int *)malloc(1*sizeof(unsigned int));
     for (;;)
     {
         int idx;
@@ -946,14 +1019,63 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
         }
     }
+    rt_max_prio = sched_get_priority_max(SCHED_FIFO);
+    rt_min_prio = sched_get_priority_min(SCHED_FIFO);
+    printscheduler();
+    for(i=0;i<NUM_THREADS;i++)
+    {	
+    	pthread_attr_init(&rt_sched_attr[i]);
+    	pthread_attr_setinheritsched(&rt_sched_attr[i], PTHREAD_EXPLICIT_SCHED);
+    	pthread_attr_setschedpolicy(&rt_sched_attr[i], SCHED_FIFO);			// Changing scheduling to fifo
+ 	rt_param[i].sched_priority=rt_max_prio-i-1;
+	//pthread_attr_setschedparam(&rt_sched_attr[i], &rt_param[i]);
+	rc=sched_setscheduler(getpid(), SCHED_FIFO, &rt_param[i]);
 
-    open_device();
+
+   if (rc)
+   {
+       printf("ERROR; sched_setscheduler rc is %d\n", rc);
+       perror("sched_setschduler"); exit(-1);
+   }
+	
+    }
+    printscheduler();
+    /*pthread_attr_init(&rt_sched_attr[1]);
+    pthread_attr_setinheritsched(&rt_sched_attr[1], PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setschedpolicy(&rt_sched_attr[1], SCHED_FIFO);
+
+    pthread_attr_init(&rt_sched_attr[2]);
+    pthread_attr_setinheritsched(&rt_sched_attr[2], PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setschedpolicy(&rt_sched_attr[2], SCHED_FIFO);			// Changing scheduling to fifo
+*/ 
+
+
+
+	open_device();
+    	init_device();
+	start_capturing();
+   /*pthread_create(&threads[0],&rt_sched_attr[0],open_device,(void *)&(threadParams[0]));
+    pthread_create(&threads[1],&rt_sched_attr[1],init_device,(void *)&(threadParams[1]));
+   /* pthread_create(&threads[0],&rt_sched_attr[0],start_capturing,(void *)&(threadParams[0]));*/
+   // pthread_create(&threads[1],&rt_sched_attr[1],mainloop,(void *)&(threadParams[1]));
+   /* pthread_create(&threads[2],&rt_sched_attr[2],stop_capturing,(void *)&(threadParams[2]));
+    pthread_create(&threads[5],&rt_sched_attr[5],uninit_device,(void *)&(threadParams[5]));
+    pthread_create(&threads[6],&rt_sched_attr[6],close_device,(void *)&(threadParams[6]));
+
+    for(i=0;i<NUM_THREADS;i++)
+    pthread_join(threads[i],NULL);
+
+*/
+
+
+    /*open_device();
     init_device();
-    start_capturing();
+    start_capturing();*/
     mainloop();
     stop_capturing();
     uninit_device();
     close_device();
+
     fprintf(stderr, "\n");
     return 0;
 }
