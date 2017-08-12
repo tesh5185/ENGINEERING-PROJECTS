@@ -1,10 +1,11 @@
+INCLUDE_DIRS = 
 LIB_DIRS = 
 CC=g++
 
 CDEFS=
 CFLAGS= -O0 -pg -g $(INCLUDE_DIRS) $(CDEFS)
-LIBS= -lrt -lpthread
-CPPLIBS= -L/usr/lib -lopencv_core -lopencv_flann -lopencv_video
+LIBS=-lrt
+CPPLIBS= -L/usr/lib -lopencv_core -lopencv_flann -lopencv_video -lpthread
 
 HFILES= 
 CFILES= 

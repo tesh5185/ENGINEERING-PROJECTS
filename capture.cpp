@@ -1,13 +1,10 @@
 /*
  *
- *  Adapted by Sam Siewert for use with UVC web cameras and Bt878 frame
- *  grabber NTSC cameras to acquire digital video from a source,
- *  time-stamp each frame acquired, save to a PGM or PPM file.
+ *  
  *
- *  The original code adapted was open source from V4L2 API and had the
- *  following use and incorporation policy:
+ *  
  * 
- *  This program can be used and distributed without restrictions.
+ *  
  *
  *      This program is provided with the V4L2 API
  * see http://linuxtv.org/docs.php for more information
@@ -45,7 +42,7 @@
 using namespace cv;
 using namespace std;
 
-#define NUM_THREADS 1
+#define NUM_THREADS 2
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 #define COLOR_CONVERT
 #define HRES 640
@@ -53,8 +50,9 @@ using namespace std;
 #define HRES_STR "640"
 #define VRES_STR "480"
 #define frame_capture 0
-#define compression
-
+#define compression 1
+sem_t sem_capture;
+sem_t sem_compress;
 void compresstojpeg(void);
 unsigned int *frameno;
 //Mat loadagain;
@@ -136,40 +134,47 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
     strncat(&ppm_dumpname[12], ".ppm", 5);
    /* snprintf(&jpg_dumpname[4], 9, "%08d", tag);
     strncat(&jpg_dumpname[12], ".jpg", 5);*/
-    usleep(1000000);
+    //usleep(1000000);
     dumpfd = open(ppm_dumpname, O_WRONLY | O_NONBLOCK | O_CREAT, 00666);
-    
+    usleep(1000000);
+    printf("Timestamp: %ld sec %ld nsec\n",time->tv_sec,time->tv_nsec);
     snprintf(&ppm_header[4], 11, "%010d", (int)time->tv_sec);
     strncat(&ppm_header[14], " sec ", 5);
     snprintf(&ppm_header[19], 11, "%010d", (int)((time->tv_nsec)/1000000));
     strncat(&ppm_header[29], " msec \n"HRES_STR" "VRES_STR"\n255\n", 19);
     written=write(dumpfd, ppm_header, sizeof(ppm_header));
-    compresstojpeg();
+    
+   // compresstojpeg();
+    printf("here\n");
     total=0;
-
+	
     do
     {
         written=write(dumpfd, p, size);
         total+=written;
     } while(total < size);
-
+    sem_post(&sem_compress);
+   // sem_wait(&sem_capture);
     printf("wrote %d bytes\n", total);
 
     close(dumpfd);
     
 }
-void compresstojpeg(void)
+void *compresstojpeg(void *threadp)
 {
+    sem_wait(&sem_compress);	
     Mat loadagain;
     //char b[frame_count];
     //int jpgg=2; 
     //IplImage* loadagain;
     snprintf(&jpg_dumpname[4], 9, "%08d", *frameno);
     strncat(&jpg_dumpname[12], ".jpg", 5);
+    printf("as well\n");
     //loadagain = cvLoadImage(ppm_dumpname);
     //cvSaveImage(b,loadagain,&jpgg);
     loadagain = imread(ppm_dumpname,1);
     imwrite( jpg_dumpname, loadagain);
+    //sem_post(&sem_capture);
 }
 
 
@@ -955,12 +960,30 @@ long_options[] = {
         { 0, 0, 0, 0 }
 };
 
+
+
+void *framecapture(void *threadp)
+{
+    //sem_wait(sem_capture);
+    open_device();
+    init_device();
+    start_capturing();
+    mainloop();
+    stop_capturing();
+    uninit_device();
+    close_device();
+
+}
+
+
+
+
 int main(int argc, char **argv)
 {
     if(argc > 1)
         dev_name = argv[1];
     else
-        dev_name = "/dev/video1";
+        dev_name = "/dev/video0";
     int rt_max_prio,rt_min_prio,rc,i=0;
     frameno=(unsigned int *)malloc(1*sizeof(unsigned int));
     for (;;)
@@ -1021,6 +1044,7 @@ int main(int argc, char **argv)
     }
     rt_max_prio = sched_get_priority_max(SCHED_FIFO);
     rt_min_prio = sched_get_priority_min(SCHED_FIFO);
+    printf("max=%d,min=%d",rt_max_prio,rt_min_prio);
     printscheduler();
     for(i=0;i<NUM_THREADS;i++)
     {	
@@ -1050,31 +1074,32 @@ int main(int argc, char **argv)
 */ 
 
 
-
-	open_device();
+ 	sem_init(&sem_capture,0,0);
+	sem_init(&sem_compress,0,0);
+	/*open_device();
     	init_device();
-	start_capturing();
-   /*pthread_create(&threads[0],&rt_sched_attr[0],open_device,(void *)&(threadParams[0]));
-    pthread_create(&threads[1],&rt_sched_attr[1],init_device,(void *)&(threadParams[1]));
+	start_capturing();*/
+   pthread_create(&threads[frame_capture],&rt_sched_attr[frame_capture],framecapture,(void *)&(threadParams[frame_capture]));
+   pthread_create(&threads[compression],&rt_sched_attr[compression],compresstojpeg,(void *)&(threadParams[compression]));
    /* pthread_create(&threads[0],&rt_sched_attr[0],start_capturing,(void *)&(threadParams[0]));*/
    // pthread_create(&threads[1],&rt_sched_attr[1],mainloop,(void *)&(threadParams[1]));
    /* pthread_create(&threads[2],&rt_sched_attr[2],stop_capturing,(void *)&(threadParams[2]));
     pthread_create(&threads[5],&rt_sched_attr[5],uninit_device,(void *)&(threadParams[5]));
     pthread_create(&threads[6],&rt_sched_attr[6],close_device,(void *)&(threadParams[6]));
-
+*/
     for(i=0;i<NUM_THREADS;i++)
     pthread_join(threads[i],NULL);
 
-*/
+
 
 
     /*open_device();
     init_device();
-    start_capturing();*/
+    start_capturing();
     mainloop();
     stop_capturing();
     uninit_device();
-    close_device();
+    close_device();*/
 
     fprintf(stderr, "\n");
     return 0;
