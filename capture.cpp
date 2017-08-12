@@ -98,7 +98,7 @@ struct buffer          *buffers;
 static unsigned int     n_buffers;
 static int              out_buf;
 static int              force_format=1;
-static int              frame_count = 50;
+static int              frame_count = 1006;
 
 static void errno_exit(const char *s)
 {
@@ -128,7 +128,7 @@ char jpg_dumpname[]="comp00000000.jpg";
 static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec *time)
 {
     int written, i, total, dumpfd;
-    
+    struct timespec test;
     *frameno=tag;
     snprintf(&ppm_dumpname[4], 9, "%08d", tag);
     strncat(&ppm_dumpname[12], ".ppm", 5);
@@ -136,14 +136,14 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
     strncat(&jpg_dumpname[12], ".jpg", 5);*/
     //usleep(1000000);
     dumpfd = open(ppm_dumpname, O_WRONLY | O_NONBLOCK | O_CREAT, 00666);
-    usleep(1000000);
-    printf("Timestamp: %ld sec %ld nsec\n",time->tv_sec,time->tv_nsec);
+    //usleep(1000000);
+    //printf("Timestamp2: %ld sec %ld nsec\n",time->tv_sec,time->tv_nsec);
     snprintf(&ppm_header[4], 11, "%010d", (int)time->tv_sec);
     strncat(&ppm_header[14], " sec ", 5);
     snprintf(&ppm_header[19], 11, "%010d", (int)((time->tv_nsec)/1000000));
     strncat(&ppm_header[29], " msec \n"HRES_STR" "VRES_STR"\n255\n", 19);
     written=write(dumpfd, ppm_header, sizeof(ppm_header));
-    
+    usleep(980000);
    // compresstojpeg();
     printf("here\n");
     total=0;
@@ -153,19 +153,23 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
         written=write(dumpfd, p, size);
         total+=written;
     } while(total < size);
-    sem_post(&sem_compress);
-   // sem_wait(&sem_capture);
+   clock_gettime(CLOCK_REALTIME, &test); 
+   printf("Timestamp 3: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
+    
+    //sem_wait(&sem_capture);
     printf("wrote %d bytes\n", total);
 
     close(dumpfd);
-    
+    sem_post(&sem_compress);
 }
 void *compresstojpeg(void *threadp)
 {
+   unsigned int count=frame_count;
+   while (count>0)
+    {   
+    struct timespec test;
     sem_wait(&sem_compress);	
     Mat loadagain;
-    //char b[frame_count];
-    //int jpgg=2; 
     //IplImage* loadagain;
     snprintf(&jpg_dumpname[4], 9, "%08d", *frameno);
     strncat(&jpg_dumpname[12], ".jpg", 5);
@@ -174,7 +178,11 @@ void *compresstojpeg(void *threadp)
     //cvSaveImage(b,loadagain,&jpgg);
     loadagain = imread(ppm_dumpname,1);
     imwrite( jpg_dumpname, loadagain);
-    //sem_post(&sem_capture);
+    clock_gettime(CLOCK_REALTIME, &test);
+     printf("Timestamp 4: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
+    sem_post(&sem_capture);
+    count--;
+   }
 }
 
 
@@ -460,16 +468,19 @@ static void mainloop(void)
     unsigned int count;
     struct timespec read_delay;
     struct timespec time_error;
-
+    struct timespec test;
     read_delay.tv_sec=0;
     read_delay.tv_nsec=30000;
 
     count = frame_count;
-
+     
     while (count > 0)
     {
         for (;;)
         {
+	sem_wait(&sem_capture);
+ 	clock_gettime(CLOCK_REALTIME, &test);
+	printf("Timestamp 1: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
             fd_set fds;
             struct timeval tv;
             int r;
@@ -983,7 +994,7 @@ int main(int argc, char **argv)
     if(argc > 1)
         dev_name = argv[1];
     else
-        dev_name = "/dev/video0";
+        dev_name = "/dev/video1";
     int rt_max_prio,rt_min_prio,rc,i=0;
     frameno=(unsigned int *)malloc(1*sizeof(unsigned int));
     for (;;)
@@ -1051,7 +1062,7 @@ int main(int argc, char **argv)
     	pthread_attr_init(&rt_sched_attr[i]);
     	pthread_attr_setinheritsched(&rt_sched_attr[i], PTHREAD_EXPLICIT_SCHED);
     	pthread_attr_setschedpolicy(&rt_sched_attr[i], SCHED_FIFO);			// Changing scheduling to fifo
- 	rt_param[i].sched_priority=rt_max_prio-i-1;
+ 	rt_param[i].sched_priority=rt_max_prio+i-1;
 	//pthread_attr_setschedparam(&rt_sched_attr[i], &rt_param[i]);
 	rc=sched_setscheduler(getpid(), SCHED_FIFO, &rt_param[i]);
 
@@ -1074,7 +1085,7 @@ int main(int argc, char **argv)
 */ 
 
 
- 	sem_init(&sem_capture,0,0);
+ 	sem_init(&sem_capture,0,1);
 	sem_init(&sem_compress,0,0);
 	/*open_device();
     	init_device();
