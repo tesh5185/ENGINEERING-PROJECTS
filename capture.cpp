@@ -25,7 +25,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-
+#include <sys/utsname.h>
 #include <linux/videodev2.h>
 
 #include <time.h>
@@ -42,7 +42,7 @@
 using namespace cv;
 using namespace std;
 
-#define NUM_THREADS 2
+#define NUM_THREADS 3
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 #define COLOR_CONVERT
 #define HRES 640
@@ -51,12 +51,26 @@ using namespace std;
 #define VRES_STR "480"
 #define frame_capture 0
 #define compression 1
+#define analysis 2
 sem_t sem_capture;
 sem_t sem_compress;
+sem_t sem_jitter;
 void compresstojpeg(void);
 unsigned int *frameno;
+struct timespec tstamp;
+long int *time_s;
+long int *time_ns;
+struct timespec test1;
+struct timespec test2;
+long int *time_sc;
+long int *time_nsc;
+long int *time_scd;
+long int *time_nscd;
 //Mat loadagain;
-
+long int comp_start_s[3000];
+long int comp_end_s[3000];
+long int comp_start_ns[3000];
+long int comp_end_ns[3000];
 // Format is used by a number of functions, so made as a file global
 static struct v4l2_format fmt;
 
@@ -98,7 +112,7 @@ struct buffer          *buffers;
 static unsigned int     n_buffers;
 static int              out_buf;
 static int              force_format=1;
-static int              frame_count = 1006;
+static int              frame_count = 1806;
 
 static void errno_exit(const char *s)
 {
@@ -124,17 +138,19 @@ char ppm_header[]="P6\n#9999999999 sec 9999999999 msec \n"HRES_STR" "VRES_STR"\n
 char ppm_dumpname[]="test00000000.ppm";
 char jpg_header[]= "#9999999999 sec 9999999999 msec \n"HRES_STR" "VRES_STR"\n";
 char jpg_dumpname[]="comp00000000.jpg";
-
+char ppm_uname[100];
+struct utsname user;
 static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec *time)
 {
     int written, i, total, dumpfd;
-    struct timespec test;
+    //struct timespec test;
     *frameno=tag;
     snprintf(&ppm_dumpname[4], 9, "%08d", tag);
     strncat(&ppm_dumpname[12], ".ppm", 5);
    /* snprintf(&jpg_dumpname[4], 9, "%08d", tag);
     strncat(&jpg_dumpname[12], ".jpg", 5);*/
     //usleep(1000000);
+	uname(&user);
     dumpfd = open(ppm_dumpname, O_WRONLY | O_NONBLOCK | O_CREAT, 00666);
     //usleep(1000000);
     //printf("Timestamp2: %ld sec %ld nsec\n",time->tv_sec,time->tv_nsec);
@@ -142,19 +158,33 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
     strncat(&ppm_header[14], " sec ", 5);
     snprintf(&ppm_header[19], 11, "%010d", (int)((time->tv_nsec)/1000000));
     strncat(&ppm_header[29], " msec \n"HRES_STR" "VRES_STR"\n255\n", 19);
+    memset(ppm_uname,0,sizeof(ppm_uname));    
+    strncat(ppm_uname,"uname\n",sizeof("uname\n"));
+	
+    strncat(ppm_uname,user.sysname,sizeof(user.sysname));
+    strncat(ppm_uname,user.nodename,sizeof(user.nodename));
+    strncat(ppm_uname,user.release,sizeof(user.release));
+    strncat(ppm_uname,user.version,sizeof(user.version));
+    strncat(ppm_uname,user.machine,sizeof(user.machine));    
+    
     written=write(dumpfd, ppm_header, sizeof(ppm_header));
-    usleep(980000);
+    written=write(dumpfd, ppm_uname, sizeof(ppm_uname));
+    //printf("%s",user.sysname);
+    
+    usleep(983100);
    // compresstojpeg();
     printf("here\n");
     total=0;
-	
+	/*for(i=0;i<sizeof(user.sysname);i++)
+	printf("%s",user.sysname);*/
+
     do
     {
         written=write(dumpfd, p, size);
         total+=written;
     } while(total < size);
-   clock_gettime(CLOCK_REALTIME, &test); 
-   printf("Timestamp 3: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
+   clock_gettime(CLOCK_REALTIME, &test1); 
+   printf("Timestamp 3: %ld sec %ld nsec\n",test1.tv_sec,test1.tv_nsec);
     
     //sem_wait(&sem_capture);
     printf("wrote %d bytes\n", total);
@@ -165,24 +195,87 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
 void *compresstojpeg(void *threadp)
 {
    unsigned int count=frame_count;
+   int i=0;
    while (count>0)
     {   
-    struct timespec test;
+    //struct timespec test;
     sem_wait(&sem_compress);	
     Mat loadagain;
     //IplImage* loadagain;
     snprintf(&jpg_dumpname[4], 9, "%08d", *frameno);
     strncat(&jpg_dumpname[12], ".jpg", 5);
-    printf("as well\n");
+   
     //loadagain = cvLoadImage(ppm_dumpname);
     //cvSaveImage(b,loadagain,&jpgg);
     loadagain = imread(ppm_dumpname,1);
     imwrite( jpg_dumpname, loadagain);
-    clock_gettime(CLOCK_REALTIME, &test);
-     printf("Timestamp 4: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
+     
+    clock_gettime(CLOCK_REALTIME, &test2);
+    *(time_sc+i)=test2.tv_sec;
+    *(time_scd+i)=test1.tv_sec;
+    *(time_nsc+i)=test2.tv_nsec;
+    *(time_nscd+i)=test1.tv_nsec;
+     count--;
+     i++;
+     printf("Timestamp 4: %ld sec %ld nsec\n",test2.tv_sec,test2.tv_nsec);
+     //usleep(1000);
     sem_post(&sem_capture);
-    count--;
+    
    }
+	sem_post(&sem_jitter);
+}
+  double arr[10000];
+  double arr1[10000];
+void *jitteranalysis(void *threadp)
+{
+   
+   sem_wait(&sem_jitter);
+  // double arr[frame_count];
+   //double arr1[frame_count];
+   float total_jitter=0;
+   int i=0;
+   double average_jitter;
+   double *prejitter=arr;
+   double *jitter=arr1;
+  // double *prejitter=(double *)malloc(2*frame_count*sizeof(double));
+   //double *jitter=(double *)malloc(2*frame_count*sizeof(double));
+   memset(jitter,0,frame_count);
+   memset(prejitter,0,frame_count);
+   printf ("Jitter analysis for capture thread\n");
+   for(i=0;i<frame_count;i++)
+   {
+  	*(prejitter+i)=*(time_scd+i) +(*(time_nscd+i)/(1000000000.0));
+	//printf("prejitter=%10.5f\n",*(prejitter+i));
+   }
+   for(i=1;i<frame_count;i++)
+   {
+	*(jitter+i)=*(prejitter+i)-*(prejitter+i-1)-1.0;
+	printf("Jitter for frame %d is %10.5f\n",i,*(jitter+i));
+	total_jitter+=*(jitter+i);
+	
+   }
+	average_jitter=total_jitter/(frame_count-1);
+	printf("Total latency= %9.5f\naverage jitter =%9.5f\n",total_jitter,average_jitter);
+	printf("Now jitter for compression thread\n");
+	total_jitter=0.0;
+   for(i=0;i<frame_count;i++)
+   {
+	//printf("prejitter for frame %d is %ld sec and %ld nsec\n",i+1,*(time_sc+i),*(time_nsc+i));	  
+	*(jitter+i)=*(time_sc+i) +(*(time_nsc+i)/(1000000000.0));
+	
+	*(jitter+i)=*(jitter+i)-*(prejitter+i)-0.007;
+	printf("jitter for frame %d is %10.5f\n",i+1,*(jitter+i));
+	total_jitter+=*(jitter+i);
+   }
+	average_jitter=total_jitter/(frame_count);
+	printf("Total latency= %9.5f\naverage jitter =%9.5f\n",total_jitter,average_jitter);
+/*if(prejitter!=NULL)
+	free(prejitter);
+
+
+	if(jitter!=NULL)
+	free(jitter);
+    */
 }
 
 
@@ -468,19 +561,24 @@ static void mainloop(void)
     unsigned int count;
     struct timespec read_delay;
     struct timespec time_error;
-    struct timespec test;
+    
     read_delay.tv_sec=0;
     read_delay.tv_nsec=30000;
 
     count = frame_count;
-     
+     int i=0;
+    usleep(1000000);
     while (count > 0)
     {
+	
         for (;;)
         {
 	sem_wait(&sem_capture);
- 	clock_gettime(CLOCK_REALTIME, &test);
-	printf("Timestamp 1: %ld sec %ld nsec\n",test.tv_sec,test.tv_nsec);
+ 	clock_gettime(CLOCK_REALTIME, &tstamp);
+	printf("Timestamp 1: %ld sec %ld nsec\n",tstamp.tv_sec,tstamp.tv_nsec);
+	*(time_s+i)=tstamp.tv_sec;
+	*(time_ns+i)=tstamp.tv_nsec;
+	//printf("Timestamp 5: %ld sec %ld nsec\n",*(time_s+i),*(time_ns+i));
             fd_set fds;
             struct timeval tv;
             int r;
@@ -515,6 +613,7 @@ static void mainloop(void)
                     //printf("time_error.tv_sec=%ld, time_error.tv_nsec=%ld\n", time_error.tv_sec, time_error.tv_nsec);
 
                 count--;
+		i++;
                 break;
             }
 
@@ -524,6 +623,9 @@ static void mainloop(void)
 
         if(count <= 0) break;
     }
+	/*if(frameno=NULL)
+	free(frameno);
+*/
 }
 
 static void stop_capturing(void)
@@ -983,7 +1085,9 @@ void *framecapture(void *threadp)
     stop_capturing();
     uninit_device();
     close_device();
-
+    //sem_post(&sem_jitter);
+   // pthread_create(&threads[analysis],NULL,jitteranalysis,(void *)&(threadParams[analysis]));
+   // jitteranalysis();
 }
 
 
@@ -997,6 +1101,15 @@ int main(int argc, char **argv)
         dev_name = "/dev/video1";
     int rt_max_prio,rt_min_prio,rc,i=0;
     frameno=(unsigned int *)malloc(1*sizeof(unsigned int));
+    time_s=(long int*)malloc(frame_count*sizeof(long int));
+    time_ns=(long int*)malloc(frame_count*sizeof(long int));
+    memset(frameno,0,frame_count);
+    memset(time_s,0,frame_count);
+    memset(time_ns,0,frame_count);
+    time_sc=comp_start_s;
+    time_nsc=comp_start_ns;
+    time_scd=comp_end_s;
+    time_nscd=comp_end_ns;
     for (;;)
     {
         int idx;
@@ -1057,7 +1170,7 @@ int main(int argc, char **argv)
     rt_min_prio = sched_get_priority_min(SCHED_FIFO);
     printf("max=%d,min=%d",rt_max_prio,rt_min_prio);
     printscheduler();
-    for(i=0;i<NUM_THREADS;i++)
+    for(i=0;i<NUM_THREADS-1;i++)
     {	
     	pthread_attr_init(&rt_sched_attr[i]);
     	pthread_attr_setinheritsched(&rt_sched_attr[i], PTHREAD_EXPLICIT_SCHED);
@@ -1087,12 +1200,13 @@ int main(int argc, char **argv)
 
  	sem_init(&sem_capture,0,1);
 	sem_init(&sem_compress,0,0);
+	sem_init(&sem_jitter,0,0);
 	/*open_device();
     	init_device();
 	start_capturing();*/
-   pthread_create(&threads[frame_capture],&rt_sched_attr[frame_capture],framecapture,(void *)&(threadParams[frame_capture]));
-   pthread_create(&threads[compression],&rt_sched_attr[compression],compresstojpeg,(void *)&(threadParams[compression]));
-   /* pthread_create(&threads[0],&rt_sched_attr[0],start_capturing,(void *)&(threadParams[0]));*/
+   pthread_create(&threads[frame_capture],&rt_sched_attr[frame_capture],framecapture,NULL);
+   pthread_create(&threads[compression],&rt_sched_attr[compression],compresstojpeg,NULL);
+   pthread_create(&threads[analysis],NULL,jitteranalysis,NULL);
    // pthread_create(&threads[1],&rt_sched_attr[1],mainloop,(void *)&(threadParams[1]));
    /* pthread_create(&threads[2],&rt_sched_attr[2],stop_capturing,(void *)&(threadParams[2]));
     pthread_create(&threads[5],&rt_sched_attr[5],uninit_device,(void *)&(threadParams[5]));
