@@ -41,7 +41,8 @@
 #include <opencv2/photo/photo.hpp>
 using namespace cv;
 using namespace std;
-
+//#define higher_rate
+#define lower_rate
 #define NUM_THREADS 3
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 #define COLOR_CONVERT
@@ -67,10 +68,10 @@ long int *time_nsc;
 long int *time_scd;
 long int *time_nscd;
 //Mat loadagain;
-long int comp_start_s[3000];
-long int comp_end_s[3000];
-long int comp_start_ns[3000];
-long int comp_end_ns[3000];
+long int comp_start_s[10000];
+long int comp_end_s[10000];
+long int comp_start_ns[10000];
+long int comp_end_ns[10000];
 // Format is used by a number of functions, so made as a file global
 static struct v4l2_format fmt;
 
@@ -170,8 +171,12 @@ static void dump_ppm(const void *p, int size, unsigned int tag, struct timespec 
     written=write(dumpfd, ppm_header, sizeof(ppm_header));
     written=write(dumpfd, ppm_uname, sizeof(ppm_uname));
     //printf("%s",user.sysname);
-    
-    usleep(983100);
+    #ifdef higher_rate
+    usleep(79700);
+    #endif
+    #ifdef lower_rate
+    usleep(980400);
+   #endif
    // compresstojpeg();
     printf("here\n");
     total=0;
@@ -248,8 +253,13 @@ void *jitteranalysis(void *threadp)
 	//printf("prejitter=%10.5f\n",*(prejitter+i));
    }
    for(i=1;i<frame_count;i++)
-   {
+   {	
+	#ifdef higher_rate
+	*(jitter+i)=*(prejitter+i)-*(prejitter+i-1)-0.1;
+	#endif
+	#ifdef lower_rate
 	*(jitter+i)=*(prejitter+i)-*(prejitter+i-1)-1.0;
+	#endif	
 	printf("Jitter for frame %d is %10.5f\n",i,*(jitter+i));
 	total_jitter+=*(jitter+i);
 	
@@ -1098,7 +1108,7 @@ int main(int argc, char **argv)
     if(argc > 1)
         dev_name = argv[1];
     else
-        dev_name = "/dev/video1";
+        dev_name = "/dev/video0";
     int rt_max_prio,rt_min_prio,rc,i=0;
     frameno=(unsigned int *)malloc(1*sizeof(unsigned int));
     time_s=(long int*)malloc(frame_count*sizeof(long int));
