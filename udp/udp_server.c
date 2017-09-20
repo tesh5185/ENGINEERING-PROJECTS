@@ -16,8 +16,8 @@
 #define chunk 512
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 50000
-#define MAXFILESIZE 50000
+#define MAXBUFSIZE 5000
+#define MAXFILESIZE 1200000
 int main (int argc, char * argv[] )
 {
 
@@ -27,15 +27,20 @@ int main (int argc, char * argv[] )
 	struct sockaddr_in serv, remote;     //"Internet socket address structure"
 	socklen_t remote_length = sizeof(remote);       //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
-	char buffer[MAXFILESIZE];             //a buffer to store our received message
+	unsigned char buffer[MAXFILESIZE];             //a buffer to store our received message
 	DIR *d;
+	char delimiter[]=":";
 	struct dirent *dir;
 	char list[MAXBUFSIZE]; 
 	char *list_ptr=&list[0];
 	char num=0;
+	int readbyte=0;
 	d = opendir(".");
-	char filedata[MAXFILESIZE];
+	unsigned char filedata[chunk];
+	//unsigned char *filedata_ptr=&filedata[0];
+	int sent;
 	int err;
+	int rem;
 	if (argc != 2)
 	{
 		printf ("USAGE:  <port>\n");
@@ -117,27 +122,46 @@ int main (int argc, char * argv[] )
 
 	//char msg[] = "orange";
 	//err=fread(filedata,1,fsize, fp);
-	size_t bytes_read=fread(filedata, sizeof(char), fsize, fp);	
-	if (bytes_read!=fsize*sizeof(char))
-		printf("Incomplete read. Read : %d, Expected : %d\n", bytes_read, (fsize*sizeof(char)));	
+		
 	/*if (ferror(fp))
 	perror("Error Reading File");
 	*/
-	fclose(fp);
+	
 	//}
 	//else
 	//printf("Error Opening file");
-
-	
+	rem=fsize;
+	//printf("chunk=%d and remainder is %d",chunk,rem);
 	//char message[MAXFILESIZE];
 	//strncpy(message, filedata, fsize);
+	while(rem>0)
+	{	
+		if(rem>chunk)
+			readbyte=chunk;
+		else
+			readbyte=rem;
 	
-	printf("Sending %d bytes to client\n", strlen(filedata));
+		size_t bytes_read=fread(filedata, sizeof(char),readbyte, fp);			
+		if (bytes_read!=readbyte*sizeof(char))
+		printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
+
+		printf("Sending %d bytes to client\n", chunk);
+		/*if(rem>chunk)
+		nbytes=sendto(sock,filedata,chunk,0,(struct sockaddr *)&remote,sizeof(remote));
+		else*/
+		nbytes=sendto(sock,filedata,readbyte,0,(struct sockaddr *)&remote,sizeof(remote));
+		
+		printf("sent size is %d\t",readbyte);
+		rem-=chunk;
+		printf("rem=%d\n ",rem);
+		//filedata_ptr=filedata_ptr+nbytes;
+		sent+=nbytes;
+	}
+	fclose(fp);
+	/*printf("Sending %d bytes to client\n", strlen(filedata));
 	nbytes=sendto(sock,filedata,fsize,0,(struct sockaddr *)&remote,sizeof(remote));
-	
-	
-	//nbytes = **** CALL SENDTO() HERE ****;
-	
+	*///nbytes = **** CALL SENDTO() HERE ****;
+//	printf("Total byes sent=%d\n",sent);
 	close(sock);
 }
 
