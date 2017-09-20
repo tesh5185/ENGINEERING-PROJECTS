@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
+#include <string.h>
 #define chunk 512
 #define MAXBUFSIZE 25000
 #define MAXFILESIZE 50000
@@ -67,7 +68,8 @@ int main (int argc, char * argv[])
 	  it will report an error if the message fails to leave the computer
 	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
 	 ******************/
-	char command[] = "book.pdf";	
+	char command[MAXBUFSIZE];
+	gets(command);
 	//nbytes = **** CALL SENDTO() HERE ****;
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
 	// Blocks till bytes are received

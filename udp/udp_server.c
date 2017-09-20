@@ -13,11 +13,13 @@
 #include <memory.h>
 #include <string.h>
 #include <dirent.h>
+#include <stdlib.h>
+#include <string.h>
 #define chunk 512
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 5000
-#define MAXFILESIZE 1200000
+#define MAXBUFSIZE 500
+#define MAXFILESIZE 10000
 int main (int argc, char * argv[] )
 {
 
@@ -27,7 +29,7 @@ int main (int argc, char * argv[] )
 	struct sockaddr_in serv, remote;     //"Internet socket address structure"
 	socklen_t remote_length = sizeof(remote);       //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
-	unsigned char buffer[MAXFILESIZE];             //a buffer to store our received message
+	unsigned char buffer[MAXBUFSIZE];             //a buffer to store our received message
 	DIR *d;
 	char delimiter[]=":";
 	struct dirent *dir;
@@ -37,7 +39,7 @@ int main (int argc, char * argv[] )
 	int readbyte=0;
 	d = opendir(".");
 	unsigned char filedata[chunk];
-	//unsigned char *filedata_ptr=&filedata[0];
+	unsigned char *buffer_ptr=malloc(MAXFILESIZE*sizeof(char));
 	int sent;
 	int err;
 	int rem;
@@ -84,8 +86,23 @@ int main (int argc, char * argv[] )
 	nbytes=recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote,&remote_length);
 	//nbytes = nbytes = **** CALL RECVFROM() HERE ****;
 	printf("The client says %s\n", buffer);
+	char *cmp, *token1,*token2;
+	cmp=strstr(buffer,delimiter);
+	if(cmp)
+	{
+		token1=strtok(buffer,delimiter);
+		buffer_ptr=strtok(NULL,delimiter);
+		printf("The strings are %s and %s\n",token1,buffer_ptr);
+		num = strcmp(token1,"get");
+		if(num==0)
+		{ 
+			//buffer_ptr=token2;			
+			printf("Sending file %s\n",buffer_ptr);
+			//fopen(buffer_ptr,"rb");
+		
+	
 	//if(buffer=="apple\n")
-	num = strcmp(buffer,"ls");
+	/*num = strcmp(buffer,"ls");
 	memset(list,0,sizeof(list));
 	if (num == 0)
 	{
@@ -106,11 +123,11 @@ int main (int argc, char * argv[] )
 	}
 	printf("List is\n %s\n",list);
 	closedir(d);
-	}
+	}*/
 
 	bzero(filedata,sizeof(filedata));
-	printf("filename is %s\n", buffer);
-	fp=fopen(buffer,"rb");
+	printf("filename is %s\n", buffer_ptr);
+	fp=fopen(buffer_ptr,"rb");
 	//if (fp!=NULL)
 	//{
 	//printf("Start : %p\n", fp);
@@ -158,6 +175,11 @@ int main (int argc, char * argv[] )
 		sent+=nbytes;
 	}
 	fclose(fp);
+}
+}
+	if(buffer_ptr!=NULL)	
+	free(buffer_ptr);
+
 	/*printf("Sending %d bytes to client\n", strlen(filedata));
 	nbytes=sendto(sock,filedata,fsize,0,(struct sockaddr *)&remote,sizeof(remote));
 	*///nbytes = **** CALL SENDTO() HERE ****;
