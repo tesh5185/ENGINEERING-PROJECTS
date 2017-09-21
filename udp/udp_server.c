@@ -22,7 +22,7 @@
 #define MAXFILESIZE 10000
 int main (int argc, char * argv[] )
 {
-
+	
 	//printf("start\n");
 	FILE *fget=NULL,*fput=NULL;
 	int sock;                           //This will be our socket
@@ -35,11 +35,11 @@ int main (int argc, char * argv[] )
 	struct dirent *dir;
 	char list[MAXBUFSIZE],recbuf[chunk]; 
 	char *list_ptr=&list[0];
-	char num,num1,num2,num3;
+	char num,num1,num2,num3,num4;
 	int readbyte=0;
 	d = opendir(".");
 	unsigned char filedata[chunk];
-	unsigned char *buffer_ptr=malloc(MAXFILESIZE*sizeof(char));
+	
 	int sent;
 	int err,recd=0;
 	int rem;
@@ -80,11 +80,15 @@ int main (int argc, char * argv[] )
 	}
 	printf("Socket successfully binded\n");
 	
-
+	while(1)
+	{
 	//waits for an incoming message
 	bzero(buffer,sizeof(buffer));
+	unsigned char *buffer_ptr=malloc(MAXFILESIZE*sizeof(char));
 	nbytes=recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&remote,&remote_length);
 	printf("The client says %s\n", buffer);
+	num3=strcmp(buffer,"ls");
+	num4=strcmp(buffer,"exit");
 	char *cmp, *token1, *token2;
 	cmp=strstr(buffer,delimiter);
 	if(cmp)
@@ -97,7 +101,7 @@ int main (int argc, char * argv[] )
 		num=strcmp(token1,"get");
 		num1=strcmp(token1,"delete");
 		num2=strcmp(token1,"put");
-		num3=strcmp(buffer,"ls");
+		
 		if(num==0)		//if(strcmp(token1,"get")==0);
 		{ 	
 				
@@ -188,15 +192,21 @@ int main (int argc, char * argv[] )
 		printf("List is\n %s\n string size=%d\n",list,(int)strlen(list));
 		closedir(d);
 	}
-
-		if(buffer_ptr!=NULL)	
-		free(buffer_ptr);
-
+	else if(num4==0)
+	{
+	close(sock);
+	printf("Socket Closed");
+	break;
+	}	
+		
+	if(buffer_ptr!=NULL)	
+	free(buffer_ptr);
+	}
 	/*printf("Sending %d bytes to client\n", strlen(filedata));
 	nbytes=sendto(sock,filedata,fsize,0,(struct sockaddr *)&remote,sizeof(remote));
 	*///nbytes = **** CALL SENDTO() HERE ****;
 //	printf("Total byes sent=%d\n",sent);
-	close(sock);
+	
 }
 
 

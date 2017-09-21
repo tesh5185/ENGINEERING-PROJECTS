@@ -19,7 +19,7 @@
 
 int main (int argc, char * argv[])
 {
-
+	
 	int nbytes=1,rem,readbyte=0,sent;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
 	FILE *fget=NULL,*fput=NULL;
@@ -35,7 +35,7 @@ int main (int argc, char * argv[])
 	}*/	
 
 	//char buffer_ptr=buffer[0];
-	int num,num1,num2,num3;
+	char num,num1,num2,num3;
 	struct sockaddr_in remote,dummy;              //"Internet socket address structure"
 	socklen_t remote_length = sizeof(remote);
 	//char get[MAXFILESIZE];
@@ -71,20 +71,24 @@ int main (int argc, char * argv[])
 	  however, with UDP, there is no error if the message is lost in the network once it leaves the computer.
 	 ******************/
 	char command[MAXBUFSIZE];
+	while(1)
+	{
 	gets(command);
+
 	//char command[]="ls";
 	
 	//nbytes = **** CALL SENDTO() HERE ****;
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
+	
 	char *cmp,*token1,*token2;
 	cmp=strstr(command,":");
 	//bzero(token1,sizeof(token1));
 	//token1=command;
 	//bzero(token1,sizeof(token1));
-	
 	printf("command is %s\n",command);
+	num3=strcmp(command,"ls");
 	if (cmp)
 	{
 		token1=strtok(command,":");
@@ -93,7 +97,8 @@ int main (int argc, char * argv[])
 		num=strcmp(token1,"get");
 		num1=strcmp(token1,"delete");
 		num2=strcmp(token1,"put");
-		num3=strcmp(command,"ls");
+		
+		
 		//num=strcmp(token1,"get");
 		if(num==0)
 		{
@@ -159,9 +164,9 @@ int main (int argc, char * argv[])
 		nbytes=recvfrom(sock,direct,MAXBUFSIZE,0,(struct sockaddr *)&remote,&remote_length);
 		printf("The list is %s\n",direct);		
 	}
-	
-	
-	close(sock);
+	}
+	//else
+	//close(sock);
 
 }
 
