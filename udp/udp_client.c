@@ -20,11 +20,13 @@
 int main (int argc, char * argv[])
 {
 
-	int nbytes=1;                             // number of bytes send by sendto()
+	int nbytes=1,rem,readbyte=0,sent;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
-	FILE *fp;
+	FILE *fget=NULL,*fput=NULL;
 	char buffer[MAXFILESIZE];
 	char recbuf[chunk];
+	char direct[MAXBUFSIZE];
+	char put[chunk];
 	/*char *pbuffer=malloc(MAXBUFSIZE*sizeof(char));
 	if(pbuffer==NULL)
 	{
@@ -33,9 +35,9 @@ int main (int argc, char * argv[])
 	}*/	
 
 	//char buffer_ptr=buffer[0];
-	int num=0;
+	int num,num1,num2,num3;
 	struct sockaddr_in remote,dummy;              //"Internet socket address structure"
-	socklen_t dummy_length = sizeof(dummy);
+	socklen_t remote_length = sizeof(remote);
 	//char get[MAXFILESIZE];
 	//char *get_ptr=&get[0];
 	int recd;
@@ -70,49 +72,97 @@ int main (int argc, char * argv[])
 	 ******************/
 	char command[MAXBUFSIZE];
 	gets(command);
+	//char command[]="ls";
+	
 	//nbytes = **** CALL SENDTO() HERE ****;
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
-	// Blocks till bytes are received
-	
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
-	bzero(buffer,sizeof(buffer));
-	//nbytes = **** CALL RECVFROM() HERE ****;  
-	num=strcmp(command,"ls");
-	if(num==0)
+	char *cmp,*token1,*token2;
+	cmp=strstr(command,":");
+	//bzero(token1,sizeof(token1));
+	//token1=command;
+	//bzero(token1,sizeof(token1));
+	
+	printf("command is %s\n",command);
+	if (cmp)
 	{
-		//nbytes=recvfrom(sock,buffer,MAXBUFSIZE,0,(struct sockaddr *)&dummy,&dummy_length);
-		//printf("The list is %s\n", buffer);		
-	}
-	bzero(recbuf,sizeof(recbuf));
-	//bzero(buffer,sizeof(buffer));	
-	printf("reached here\n");
-	nbytes=chunk;
-	fp=fopen(command,"wb");
-	while(nbytes>=chunk)
-	{	
-		nbytes=recvfrom(sock,recbuf,chunk,0,(struct sockaddr *)&dummy,&dummy_length);
+		token1=strtok(command,":");
+		token2=strtok(NULL,":");
+		printf("cmd is %s & file is %s\n",token1,token2);
+		num=strcmp(token1,"get");
+		num1=strcmp(token1,"delete");
+		num2=strcmp(token1,"put");
+		num3=strcmp(command,"ls");
+		//num=strcmp(token1,"get");
+		if(num==0)
+		{
+			printf("num=%d",num);
+			bzero(recbuf,sizeof(recbuf));
+			nbytes=chunk;
+			fget=fopen(token2,"wb");
+			while(nbytes>=chunk)
+			{	
+				nbytes=recvfrom(sock,recbuf,chunk,0,(struct sockaddr *)&remote,&remote_length);
+			
+				//strncpy(buffer,recbuf,nbytes);
+				printf("bytes recieved=%d\n",nbytes);
+				recd+=nbytes;
+				fwrite(recbuf,1,nbytes, fget);	
+			}	
+			printf("received size is %d\n",recd);
+			fclose(fget);
+		}
+		else if(num2==0)
+		{
+			//num=strcmp(token1,"put");
+			fput=fopen(token2,"rb");	
+			fseek(fput, 0 , SEEK_END);	
+			int fsize = ftell(fput);
+			printf("File size is %d\n", fsize);
+			fseek(fput, 0, SEEK_SET);
+			rem=fsize;
+			while(rem>0)
+			{	
+				if(rem>chunk)
+					readbyte=chunk;
+				else
+					readbyte=rem;
+	
+				size_t bytes_read=fread(put, sizeof(char),readbyte, fput);			
+				if (bytes_read!=readbyte*sizeof(char))
+					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
+
+				printf("Sending %d bytes to client\n", chunk);
+				nbytes=sendto(sock,put,readbyte,0,(struct sockaddr *)&remote,remote_length);
 		
-		strncpy(buffer,recbuf,nbytes);
-		printf("bytes recieved=%d\n",nbytes);
-		//get_ptr=get_ptr+nbytes;
-		//pbuffer+=nbytes;
-		recd+=nbytes;
-		fwrite(recbuf,1,nbytes, fp);
-		//printf("received data is %s",buffer);
-		//printf("Address f")
-	}	
-	//printf("%d",strlen(buffer));
-	printf("received size is %d\n",recd);
+				printf("sent size is %d\t",readbyte);
+				rem-=chunk;
+				printf("rem=%d\n ",rem);
+				sent+=nbytes;
+			}
+			fclose(fput);
+
+		}
+	}
 	
 
+
+
 	
+	//num=strcmp(command,"ls");nbytes=0;
+	//if(strcmp(command,"ls")==0);
+	else if(num3==0)	
+	{	
+		bzero(direct,sizeof(direct));
+		//printf("command is %s\n",command);
+		nbytes=recvfrom(sock,direct,MAXBUFSIZE,0,(struct sockaddr *)&remote,&remote_length);
+		printf("The list is %s\n",direct);		
+	}
 	
-	fclose(fp);
-	//if(pbuffer)
-	//free(pbuffer);
 	
 	close(sock);
 
 }
+
 
