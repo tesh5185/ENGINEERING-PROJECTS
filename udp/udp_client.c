@@ -16,10 +16,15 @@
 #define MAXBUFSIZE 25000
 #define MAXFILESIZE 50000
 /* You will have to modify the program below */
-
+struct receivefile
+{
+   int packet_no;
+   char recbuf[chunk];
+};
 int main (int argc, char * argv[])
 {
-	
+	struct receivefile *getfile;
+	getfile=malloc(sizeof(struct receivefile));
 	int nbytes=1,rem,readbyte=0,sent;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
 	FILE *fget=NULL,*fput=NULL;
@@ -103,17 +108,17 @@ int main (int argc, char * argv[])
 		if(num==0)
 		{
 			printf("num=%d",num);
-			bzero(recbuf,sizeof(recbuf));
+			bzero(getfile->recbuf,sizeof(getfile->recbuf));
 			nbytes=chunk;
 			fget=fopen(token2,"wb");
 			while(nbytes>=chunk)
 			{	
-				nbytes=recvfrom(sock,recbuf,chunk,0,(struct sockaddr *)&remote,&remote_length);
+				nbytes=recvfrom(sock,getfile->recbuf,chunk,0,(struct sockaddr *)&remote,&remote_length);
 			
 				//strncpy(buffer,recbuf,nbytes);
 				printf("bytes recieved=%d\n",nbytes);
 				recd+=nbytes;
-				fwrite(recbuf,1,nbytes, fget);	
+				fwrite(getfile->recbuf,1,nbytes, fget);	
 			}	
 			printf("received size is %d\n",recd);
 			fclose(fget);

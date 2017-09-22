@@ -18,11 +18,21 @@
 #define chunk 512
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 500
+#define MAXBUFSIZE 50
 #define MAXFILESIZE 10000
+struct sendfile
+{
+	int packet_no;
+	char filedata[chunk];
+};
+   
+
+
 int main (int argc, char * argv[] )
 {
-	
+	struct sendfile *getfile;
+	getfile=malloc(sizeof(struct sendfile));
+	//printf("%d\n",sizeof(struct sendfile));
 	//printf("start\n");
 	FILE *fget=NULL,*fput=NULL;
 	int sock;                           //This will be our socket
@@ -106,7 +116,7 @@ int main (int argc, char * argv[] )
 		{ 	
 				
 			printf("Sending file %s\n",buffer_ptr);
-			bzero(filedata,sizeof(filedata));	
+			bzero(getfile->filedata,sizeof(getfile->filedata));	
 			printf("filename is %s\n", buffer_ptr);
 			fget=fopen(buffer_ptr,"rb");
 			fseek(fget, 0 , SEEK_END);	
@@ -122,12 +132,12 @@ int main (int argc, char * argv[] )
 				else
 					readbyte=rem;
 	
-				size_t bytes_read=fread(filedata, sizeof(char),readbyte, fget);			
+				size_t bytes_read=fread(getfile->filedata, sizeof(char),readbyte, fget);			
 				if (bytes_read!=readbyte*sizeof(char))
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
 
 				printf("Sending %d bytes to client\n", chunk);
-				nbytes=sendto(sock,filedata,readbyte,0,(struct sockaddr *)&remote,sizeof(remote));
+				nbytes=sendto(sock,getfile->filedata,readbyte,0,(struct sockaddr *)&remote,sizeof(remote));
 		
 				printf("sent size is %d\t",readbyte);
 				rem-=chunk;
@@ -173,7 +183,8 @@ int main (int argc, char * argv[] )
 		//if(num==0)
 		//{	
 		//printf("buffer is %s\n",buffer);
-		memset(list,0,sizeof(list));
+		//memset(list,0,sizeof(list));
+		bzero(list,sizeof(list));
 		printf("listing the files\n");	
 		if (d)
 		{
@@ -195,7 +206,7 @@ int main (int argc, char * argv[] )
 	else if(num4==0)
 	{
 	close(sock);
-	printf("Socket Closed");
+	printf("Socket Closed\n");
 	break;
 	}	
 		
