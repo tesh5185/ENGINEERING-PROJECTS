@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -15,9 +16,9 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
-#define chunk 512
+#define chunk 1024
 /* You will have to modify the program below */
-
+#define RTT 200000
 #define MAXBUFSIZE 50
 #define MAXFILESIZE 10000
 struct sendfile
@@ -40,17 +41,18 @@ int main (int argc, char * argv[] )
 	socklen_t remote_length = sizeof(remote);       //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
 	unsigned char buffer[MAXBUFSIZE];             //a buffer to store our received message
-	DIR *d;
+	
 	char delimiter[]=":";
 	struct dirent *dir;
 	char list[MAXBUFSIZE],recbuf[chunk]; 
-	char *list_ptr=&list[0];
+	
 	char num,num1,num2,num3,num4;
 	int readbyte=0;
-	d = opendir(".");
+	DIR *d;
 	unsigned char filedata[chunk];
-	
+	int count;
 	int sent;
+	int ack;
 	int err,recd=0;
 	int rem;
 	if (argc != 2)
@@ -101,6 +103,9 @@ int main (int argc, char * argv[] )
 	num4=strcmp(buffer,"exit");
 	char *cmp, *token1, *token2;
 	cmp=strstr(buffer,delimiter);
+	char string[4];
+	struct timeval timeout;
+	timeout.tv_usec=RTT;
 	if(cmp)
 	{
 		token1=strtok(buffer,delimiter);
@@ -114,7 +119,7 @@ int main (int argc, char * argv[] )
 		
 		if(num==0)		//if(strcmp(token1,"get")==0);
 		{ 	
-				
+			
 			printf("Sending file %s\n",buffer_ptr);
 			bzero(getfile->filedata,sizeof(getfile->filedata));	
 			printf("filename is %s\n", buffer_ptr);
@@ -125,8 +130,10 @@ int main (int argc, char * argv[] )
 			printf("File size is %d\n", fsize);
 			fseek(fget, 0, SEEK_SET);
 			rem=fsize;
+			getfile->packet_no=1;
 			while(rem>0)
 			{	
+				
 				if(rem>chunk)
 					readbyte=chunk;
 				else
@@ -135,14 +142,26 @@ int main (int argc, char * argv[] )
 				size_t bytes_read=fread(getfile->filedata, sizeof(char),readbyte, fget);			
 				if (bytes_read!=readbyte*sizeof(char))
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
-
-				printf("Sending %d bytes to client\n", chunk);
-				nbytes=sendto(sock,getfile->filedata,readbyte,0,(struct sockaddr *)&remote,sizeof(remote));
-		
-				printf("sent size is %d\t",readbyte);
+			
+				//printf("Sending %d bytes to client\n", chunk);
+				nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
 				rem-=chunk;
-				printf("rem=%d\n ",rem);
-				sent+=nbytes;
+				if(rem>0)
+				{
+					recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
+					setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+					ack=atoi(string);
+					printf("ACK NO =%d\n",ack);
+					if(ack!=getfile->packet_no)
+						nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
+					
+				}
+				
+				printf("sent size is %d\tsequence number=%d\n",readbyte,getfile->packet_no);
+				
+				printf("remaining size=%d\n ",rem);
+				//sent+=nbytes;
+				getfile->packet_no+=1;
 			}
 			fclose(fget);
 		}
@@ -157,7 +176,7 @@ int main (int argc, char * argv[] )
 		}
 		else if(num2==0)
 		{		
-			printf("please send");
+			//printf("please send");
 			//num=strcmp(token1,"put");
 			nbytes=chunk;
 			fput=fopen(token2,"wb");
@@ -185,11 +204,13 @@ int main (int argc, char * argv[] )
 		//printf("buffer is %s\n",buffer);
 		//memset(list,0,sizeof(list));
 		bzero(list,sizeof(list));
+		char *list_ptr=&list[0];
+		d = opendir(".");
 		printf("listing the files\n");	
 		if (d)
-		{
+		{	
 			while ((dir = readdir(d)) != NULL)
-			{
+			{	printf("karo\n");
 				//printf("Directory entry : %s\n",dir->d_name);
 				//printf("%p\n",list);
 				strncpy(list_ptr,dir->d_name,strlen(dir->d_name));
@@ -198,6 +219,7 @@ int main (int argc, char * argv[] )
 				strncpy(list_ptr,"\n",strlen("\n"));
 				list_ptr+= strlen("\n");
 			}
+			//list_ptr=list;
 			nbytes=sendto(sock,list,strlen(list),0,(struct sockaddr *)&remote,sizeof(remote));
 		}
 		printf("List is\n %s\n string size=%d\n",list,(int)strlen(list));

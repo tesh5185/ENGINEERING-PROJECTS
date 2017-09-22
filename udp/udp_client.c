@@ -12,7 +12,7 @@
 #include <memory.h>
 #include <errno.h>
 #include <string.h>
-#define chunk 512
+#define chunk 1024
 #define MAXBUFSIZE 25000
 #define MAXFILESIZE 50000
 /* You will have to modify the program below */
@@ -21,6 +21,7 @@ struct receivefile
    int packet_no;
    char recbuf[chunk];
 };
+int current_packet=0;
 int main (int argc, char * argv[])
 {
 	struct receivefile *getfile;
@@ -32,6 +33,7 @@ int main (int argc, char * argv[])
 	char recbuf[chunk];
 	char direct[MAXBUFSIZE];
 	char put[chunk];
+	
 	/*char *pbuffer=malloc(MAXBUFSIZE*sizeof(char));
 	if(pbuffer==NULL)
 	{
@@ -86,7 +88,7 @@ int main (int argc, char * argv[])
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
-	
+	char string[4];
 	char *cmp,*token1,*token2;
 	cmp=strstr(command,":");
 	//bzero(token1,sizeof(token1));
@@ -107,18 +109,23 @@ int main (int argc, char * argv[])
 		//num=strcmp(token1,"get");
 		if(num==0)
 		{
-			printf("num=%d",num);
+			//printf("num=%d",num);
 			bzero(getfile->recbuf,sizeof(getfile->recbuf));
-			nbytes=chunk;
+			nbytes=chunk+4;
 			fget=fopen(token2,"wb");
-			while(nbytes>=chunk)
+			while(nbytes>=chunk+4)
 			{	
-				nbytes=recvfrom(sock,getfile->recbuf,chunk,0,(struct sockaddr *)&remote,&remote_length);
-			
+				nbytes=recvfrom(sock,getfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
+				sprintf(string,"%d",getfile->packet_no);
+				sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);				
 				//strncpy(buffer,recbuf,nbytes);
-				printf("bytes recieved=%d\n",nbytes);
-				recd+=nbytes;
-				fwrite(getfile->recbuf,1,nbytes, fget);	
+				printf("bytes recieved=%d\tsequence number=%d\n",nbytes,getfile->packet_no);
+				if(getfile->packet_no==current_packet+1)
+				{
+					recd+=nbytes-4;
+					fwrite(getfile->recbuf,1,nbytes-4, fget);
+				}
+				current_packet=getfile->packet_no;			
 			}	
 			printf("received size is %d\n",recd);
 			fclose(fget);
