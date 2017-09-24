@@ -14,14 +14,15 @@
 #include <string.h>
 #define chunk 1024
 #define MAXBUFSIZE 25000
-#define MAXFILESIZE 50000
+#define MAXFILESIZE 5000000
+#define RTT 500000
 /* You will have to modify the program below */
 struct receivefile
 {
    int packet_no;
    char recbuf[chunk];
 };
-int current_packet=0;
+int current_packet=0,ret;
 int main (int argc, char * argv[])
 {
 	struct receivefile *getfile;
@@ -33,7 +34,9 @@ int main (int argc, char * argv[])
 	char recbuf[chunk];
 	char direct[MAXBUFSIZE];
 	char put[chunk];
-	
+	struct timeval timeout;
+	timeout.tv_usec=RTT;
+	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 	/*char *pbuffer=malloc(MAXBUFSIZE*sizeof(char));
 	if(pbuffer==NULL)
 	{
@@ -116,6 +119,7 @@ int main (int argc, char * argv[])
 			while(nbytes>=chunk+4)
 			{	
 				nbytes=recvfrom(sock,getfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
+				printf("ret=%d\n",ret);
 				sprintf(string,"%d",getfile->packet_no);
 				sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);				
 				//strncpy(buffer,recbuf,nbytes);

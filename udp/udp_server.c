@@ -18,16 +18,16 @@
 #include <string.h>
 #define chunk 1024
 /* You will have to modify the program below */
-#define RTT 200000
+#define RTT 1000000
 #define MAXBUFSIZE 50
-#define MAXFILESIZE 10000
+#define MAXFILESIZE 5000000
 struct sendfile
 {
 	int packet_no;
 	char filedata[chunk];
 };
    
-
+int ret;
 
 int main (int argc, char * argv[] )
 {
@@ -106,6 +106,7 @@ int main (int argc, char * argv[] )
 	char string[4];
 	struct timeval timeout;
 	timeout.tv_usec=RTT;
+	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 	if(cmp)
 	{
 		token1=strtok(buffer,delimiter);
@@ -145,18 +146,18 @@ int main (int argc, char * argv[] )
 			
 				//printf("Sending %d bytes to client\n", chunk);
 				nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
-				rem-=chunk;
-				if(rem>0)
-				{
-					recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
-					setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+				
+				//if(rem>0)
+				//{
+					ret=recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
+					printf("ret=%d\n",ret);
 					ack=atoi(string);
 					printf("ACK NO =%d\n",ack);
 					if(ack!=getfile->packet_no)
 						nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
 					
-				}
-				
+				//}
+				rem-=chunk;
 				printf("sent size is %d\tsequence number=%d\n",readbyte,getfile->packet_no);
 				
 				printf("remaining size=%d\n ",rem);
