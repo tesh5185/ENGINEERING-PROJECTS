@@ -26,7 +26,7 @@ int current_packet=0,ret;
 int main (int argc, char * argv[])
 {
 	struct receivefile *getfile;
-	getfile=malloc(sizeof(struct receivefile));
+	//getfile=malloc(sizeof(struct receivefile));
 	int nbytes=1,rem,readbyte=0,sent;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
 	FILE *fget=NULL,*fput=NULL;
@@ -36,7 +36,7 @@ int main (int argc, char * argv[])
 	char put[chunk];
 	struct timeval timeout;
 	timeout.tv_usec=RTT;
-	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+
 	/*char *pbuffer=malloc(MAXBUFSIZE*sizeof(char));
 	if(pbuffer==NULL)
 	{
@@ -86,7 +86,7 @@ int main (int argc, char * argv[])
 	gets(command);
 
 	//char command[]="ls";
-	
+	nbytes=1;
 	//nbytes = **** CALL SENDTO() HERE ****;
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
 	struct sockaddr_in from_addr;
@@ -111,16 +111,19 @@ int main (int argc, char * argv[])
 		
 		//num=strcmp(token1,"get");
 		if(num==0)
-		{
+		{	getfile=malloc(sizeof(struct receivefile));
 			//printf("num=%d",num);
 			bzero(getfile->recbuf,sizeof(getfile->recbuf));
 			nbytes=chunk+4;
 			fget=fopen(token2,"wb");
+			recd=0;
+			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+			current_packet=0;
 			while(nbytes>=chunk+4)
 			{	
 				nbytes=recvfrom(sock,getfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
-				printf("ret=%d\n",ret);
-				sprintf(string,"%d",getfile->packet_no);
+				printf("packet number=%d\n",(int)getfile->packet_no);
+				sprintf(string,"%d",(int)getfile->packet_no);
 				sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);				
 				//strncpy(buffer,recbuf,nbytes);
 				printf("bytes recieved=%d\tsequence number=%d\n",nbytes,getfile->packet_no);
@@ -133,6 +136,7 @@ int main (int argc, char * argv[])
 			}	
 			printf("received size is %d\n",recd);
 			fclose(fget);
+			free(getfile);
 		}
 		else if(num2==0)
 		{

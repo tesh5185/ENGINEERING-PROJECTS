@@ -31,8 +31,8 @@ int ret;
 
 int main (int argc, char * argv[] )
 {
-	struct sendfile *getfile;
-	getfile=malloc(sizeof(struct sendfile));
+	struct sendfile *getfile, *putfile;
+	//getfile=malloc(sizeof(struct sendfile));
 	//printf("%d\n",sizeof(struct sendfile));
 	//printf("start\n");
 	FILE *fget=NULL,*fput=NULL;
@@ -49,7 +49,7 @@ int main (int argc, char * argv[] )
 	char num,num1,num2,num3,num4;
 	int readbyte=0;
 	DIR *d;
-	unsigned char filedata[chunk];
+	//unsigned char filedata[chunk];
 	int count;
 	int sent;
 	int ack;
@@ -120,7 +120,7 @@ int main (int argc, char * argv[] )
 		
 		if(num==0)		//if(strcmp(token1,"get")==0);
 		{ 	
-			
+			getfile=malloc(sizeof(struct sendfile));
 			printf("Sending file %s\n",buffer_ptr);
 			bzero(getfile->filedata,sizeof(getfile->filedata));	
 			printf("filename is %s\n", buffer_ptr);
@@ -132,6 +132,7 @@ int main (int argc, char * argv[] )
 			fseek(fget, 0, SEEK_SET);
 			rem=fsize;
 			getfile->packet_no=1;
+			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 			while(rem>0)
 			{	
 				
@@ -146,9 +147,10 @@ int main (int argc, char * argv[] )
 			
 				//printf("Sending %d bytes to client\n", chunk);
 				nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
-				
+				printf("sent packet number =%d\n",getfile->packet_no);
 				//if(rem>0)
-				//{
+				//{	
+					
 					ret=recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
 					printf("ret=%d\n",ret);
 					ack=atoi(string);
@@ -165,6 +167,7 @@ int main (int argc, char * argv[] )
 				getfile->packet_no+=1;
 			}
 			fclose(fget);
+			free(getfile);
 		}
 		else if(num1==0)
 		{	//num=strcmp(token1,"delete");(num==0)
@@ -179,15 +182,18 @@ int main (int argc, char * argv[] )
 		{		
 			//printf("please send");
 			//num=strcmp(token1,"put");
+			putfile=malloc(sizeof(struct sendfile));
+			bzero(putfile->filedata,sizeof(putfile->filedata));
 			nbytes=chunk;
 			fput=fopen(token2,"wb");
+			recd=0;
 			while(nbytes>=chunk)
 				{	
-					nbytes=recvfrom(sock,recbuf,chunk,0,(struct sockaddr *)&remote,&remote_length);
+					nbytes=recvfrom(sock,putfile->filedata,chunk,0,(struct sockaddr *)&remote,&remote_length);
 					//strncpy(buffer,recbuf,nbytes);
 					printf("bytes recieved=%d\n",nbytes);
 					recd+=nbytes;
-					fwrite(recbuf,1,nbytes, fput);
+					fwrite(putfile->filedata,1,nbytes, fput);
 			
 				}	
 				printf("received size is %d\n",recd);
