@@ -20,7 +20,7 @@
 /* You will have to modify the program below */
 #define RTT 1000000
 #define MAXBUFSIZE 50
-#define MAXFILESIZE 5000000
+#define MAXFILESIZE 500000
 struct sendfile
 {
 	int packet_no;
@@ -36,7 +36,7 @@ int main (int argc, char * argv[] )
 	//printf("%d\n",sizeof(struct sendfile));
 	//printf("start\n");
 	FILE *fget=NULL,*fput=NULL;
-	int sock;                           //This will be our socket
+	int sock,current_packet;                           //This will be our socket
 	struct sockaddr_in serv, remote;     //"Internet socket address structure"
 	socklen_t remote_length = sizeof(remote);       //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
@@ -104,6 +104,7 @@ int main (int argc, char * argv[] )
 	char *cmp, *token1, *token2;
 	cmp=strstr(buffer,delimiter);
 	char string[4];
+	nbytes=0;
 	struct timeval timeout;
 	timeout.tv_usec=RTT;
 	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
@@ -184,20 +185,33 @@ int main (int argc, char * argv[] )
 			//num=strcmp(token1,"put");
 			putfile=malloc(sizeof(struct sendfile));
 			bzero(putfile->filedata,sizeof(putfile->filedata));
-			nbytes=chunk;
+			nbytes=chunk+4;
 			fput=fopen(token2,"wb");
-			recd=0;
-			while(nbytes>=chunk)
+			recd=0;ack=0;
+			current_packet=0;
+			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+			while(nbytes>=chunk+4)
 				{	
-					nbytes=recvfrom(sock,putfile->filedata,chunk,0,(struct sockaddr *)&remote,&remote_length);
+					nbytes=recvfrom(sock,putfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
 					//strncpy(buffer,recbuf,nbytes);
+					printf("packet number=%d\n",(int)putfile->packet_no);
+					sprintf(string,"%d",(int)putfile->packet_no);
+					printf("string is %s",string);
+					sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);
 					printf("bytes recieved=%d\n",nbytes);
-					recd+=nbytes;
-					fwrite(putfile->filedata,1,nbytes, fput);
-			
+					//recd+=nbytes;
+					printf("bytes recieved=%d\tsequence number=%d\n",nbytes,putfile->packet_no);
+					if(putfile->packet_no==current_packet+1)
+					{
+						recd+=nbytes-4;
+						fwrite(putfile->filedata,1,nbytes-4, fput);
+					}
+				current_packet=putfile->packet_no;	
 				}	
 				printf("received size is %d\n",recd);
+				ack=0;
 				fclose(fput);
+				free(putfile);
 		}
 	
 	}	

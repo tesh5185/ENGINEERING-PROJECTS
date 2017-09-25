@@ -14,8 +14,8 @@
 #include <string.h>
 #define chunk 1024
 #define MAXBUFSIZE 25000
-#define MAXFILESIZE 5000000
-#define RTT 500000
+#define MAXFILESIZE 500000
+#define RTT 1000000
 /* You will have to modify the program below */
 struct receivefile
 {
@@ -25,9 +25,9 @@ struct receivefile
 int current_packet=0,ret;
 int main (int argc, char * argv[])
 {
-	struct receivefile *getfile;
+	struct receivefile *getfile, *putfile;
 	//getfile=malloc(sizeof(struct receivefile));
-	int nbytes=1,rem,readbyte=0,sent;                             // number of bytes send by sendto()
+	int nbytes=1,rem,readbyte=0,sent,ack;                             // number of bytes send by sendto()
 	int sock;                               //this will be our socket
 	FILE *fget=NULL,*fput=NULL;
 	char buffer[MAXFILESIZE];
@@ -112,7 +112,6 @@ int main (int argc, char * argv[])
 		//num=strcmp(token1,"get");
 		if(num==0)
 		{	getfile=malloc(sizeof(struct receivefile));
-			//printf("num=%d",num);
 			bzero(getfile->recbuf,sizeof(getfile->recbuf));
 			nbytes=chunk+4;
 			fget=fopen(token2,"wb");
@@ -141,12 +140,15 @@ int main (int argc, char * argv[])
 		else if(num2==0)
 		{
 			//num=strcmp(token1,"put");
+			putfile=malloc(sizeof(struct receivefile));
+			bzero(putfile->recbuf,sizeof(putfile->recbuf));
 			fput=fopen(token2,"rb");	
 			fseek(fput, 0 , SEEK_END);	
 			int fsize = ftell(fput);
 			printf("File size is %d\n", fsize);
 			fseek(fput, 0, SEEK_SET);
 			rem=fsize;
+			putfile->packet_no=1;
 			while(rem>0)
 			{	
 				if(rem>chunk)
@@ -154,29 +156,34 @@ int main (int argc, char * argv[])
 				else
 					readbyte=rem;
 	
-				size_t bytes_read=fread(put, sizeof(char),readbyte, fput);			
+				size_t bytes_read=fread(putfile->recbuf, sizeof(char),readbyte, fput);			
 				if (bytes_read!=readbyte*sizeof(char))
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
 
+				
 				printf("Sending %d bytes to client\n", chunk);
-				nbytes=sendto(sock,put,readbyte,0,(struct sockaddr *)&remote,remote_length);
-		
+				nbytes=sendto(sock,putfile,readbyte+4,0,(struct sockaddr *)&remote,remote_length);
+				
+				ret=recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
+				printf("ret=%d\n",ret);
+				ack=atoi(string);
+				printf("ACK NO =%d\n",ack);
+				if(ack!=putfile->packet_no)
+						nbytes=sendto(sock,putfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
+
+				rem-=chunk;				
+				printf("sent packet number =%d\n",putfile->packet_no);
 				printf("sent size is %d\t",readbyte);
-				rem-=chunk;
+				
 				printf("rem=%d\n ",rem);
 				sent+=nbytes;
+				putfile->packet_no+=1;
 			}
 			fclose(fput);
-
+			free(putfile);
 		}
 	}
 	
-
-
-
-	
-	//num=strcmp(command,"ls");nbytes=0;
-	//if(strcmp(command,"ls")==0);
 	else if(num3==0)	
 	{	
 		bzero(direct,sizeof(direct));
