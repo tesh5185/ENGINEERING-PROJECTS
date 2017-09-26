@@ -74,7 +74,7 @@ int main (int argc, char * argv[])
 		printf("unable to create socket");
 	}
 	printf("Socket successfully created\n");
-	
+	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 	/******************
 	  sendto() sends immediately.  
 	  it will report an error if the message fails to leave the computer
@@ -83,20 +83,16 @@ int main (int argc, char * argv[])
 	char command[MAXBUFSIZE];
 	while(1)
 	{
+	
+	printf("To get a file from server type get:filename\nTo put a file on server type put:filename\nTo delete a file on server try 		delete:filename\nTo list files on server side type ls\nTo close socket type exit\n");
 	gets(command);
-
-	//char command[]="ls";
 	nbytes=1;
-	//nbytes = **** CALL SENDTO() HERE ****;
 	nbytes=sendto(sock,command,strlen(command),0,(struct sockaddr *)&remote,sizeof(remote));
 	struct sockaddr_in from_addr;
 	int addr_length = sizeof(struct sockaddr);
-	char string[4];
+	char string[10];
 	char *cmp,*token1,*token2;
-	cmp=strstr(command,":");
-	//bzero(token1,sizeof(token1));
-	//token1=command;
-	//bzero(token1,sizeof(token1));
+	cmp=strstr(command,":");	//check if delimiter present
 	printf("command is %s\n",command);
 	num3=strcmp(command,"ls");
 	if (cmp)
@@ -104,53 +100,65 @@ int main (int argc, char * argv[])
 		token1=strtok(command,":");
 		token2=strtok(NULL,":");
 		printf("cmd is %s & file is %s\n",token1,token2);
-		num=strcmp(token1,"get");
+		num=strcmp(token1,"get");		//separate the command and filename
 		num1=strcmp(token1,"delete");
 		num2=strcmp(token1,"put");
 		
 		
 		//num=strcmp(token1,"get");
 		if(num==0)
-		{	getfile=malloc(sizeof(struct receivefile));
-			bzero(getfile->recbuf,sizeof(getfile->recbuf));
-			nbytes=chunk+4;
+		{	
+			/*assign heap for put struct*/
+			getfile=malloc(sizeof(struct receivefile));
+			bzero(getfile->recbuf,sizeof(getfile->recbuf));	//set the structure as 0s
+			nbytes=chunk+4;					//sum of bufffer and packet_no
+			/*open file for writing*/			
 			fget=fopen(token2,"wb");
 			recd=0;
-			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+			
 			current_packet=0;
+			bzero(string,sizeof(string));
 			while(nbytes>=chunk+4)
 			{	
+				/*receive data from client*/
 				nbytes=recvfrom(sock,getfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
 				printf("packet number=%d\n",(int)getfile->packet_no);
+				/*print packet number in string*/
 				sprintf(string,"%d",(int)getfile->packet_no);
+				printf("string is %s\n",string);
+				/*send back acknowledgement*/
 				sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);				
 				//strncpy(buffer,recbuf,nbytes);
 				printf("bytes recieved=%d\tsequence number=%d\n",nbytes,getfile->packet_no);
+				/*verify if we are getting the next packet*/
 				if(getfile->packet_no==current_packet+1)
 				{
-					recd+=nbytes-4;
-					fwrite(getfile->recbuf,1,nbytes-4, fget);
+					recd+=nbytes-4;				
+					fwrite(getfile->recbuf,1,nbytes-4, fget);	
 				}
 				current_packet=getfile->packet_no;			
 			}	
 			printf("received size is %d\n",recd);
-			fclose(fget);
-			free(getfile);
+			fclose(fget);			//close file descriptor
+			free(getfile);			//free getfile
 		}
 		else if(num2==0)
 		{
 			//num=strcmp(token1,"put");
 			putfile=malloc(sizeof(struct receivefile));
 			bzero(putfile->recbuf,sizeof(putfile->recbuf));
+			/*open file for reading*/
 			fput=fopen(token2,"rb");	
 			fseek(fput, 0 , SEEK_END);	
-			int fsize = ftell(fput);
+			int fsize = ftell(fput);	//get end of file
 			printf("File size is %d\n", fsize);
 			fseek(fput, 0, SEEK_SET);
 			rem=fsize;
 			putfile->packet_no=1;
+			bzero(string,sizeof(string));
 			while(rem>0)
 			{	
+				/*check if last byte*/
 				if(rem>chunk)
 					readbyte=chunk;
 				else
@@ -160,24 +168,27 @@ int main (int argc, char * argv[])
 				if (bytes_read!=readbyte*sizeof(char))
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
 
-				
+				/*read data and verify*/
 				printf("Sending %d bytes to client\n", chunk);
+				/*send data to receiver*/
 				nbytes=sendto(sock,putfile,readbyte+4,0,(struct sockaddr *)&remote,remote_length);
-				
-				ret=recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
+				/*recieve ack no*/
+				ret=recvfrom(sock,string,sizeof(string),0,(struct sockaddr *)&remote,&remote_length);
 				printf("ret=%d\n",ret);
-				ack=atoi(string);
+				ack=atoi(string);	//convert string to integer
 				printf("ACK NO =%d\n",ack);
+				/*check if the same packet*/
 				if(ack!=putfile->packet_no)
 						nbytes=sendto(sock,putfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
-
-				rem-=chunk;				
+				else
+				rem-=chunk;			//update chunk		
+				
 				printf("sent packet number =%d\n",putfile->packet_no);
 				printf("sent size is %d\t",readbyte);
 				
 				printf("rem=%d\n ",rem);
 				sent+=nbytes;
-				putfile->packet_no+=1;
+				putfile->packet_no+=1;	//update packet number
 			}
 			fclose(fput);
 			free(putfile);
@@ -188,10 +199,11 @@ int main (int argc, char * argv[])
 	{	
 		bzero(direct,sizeof(direct));
 		//printf("command is %s\n",command);
+		/*receive deirectory files from server*/
 		nbytes=recvfrom(sock,direct,MAXBUFSIZE,0,(struct sockaddr *)&remote,&remote_length);
 		printf("The list is %s\n",direct);		
 	}
-	}
+}
 	//else
 	//close(sock);
 

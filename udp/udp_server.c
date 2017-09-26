@@ -18,31 +18,30 @@
 #include <string.h>
 #define chunk 1024
 /* You will have to modify the program below */
-#define RTT 1000000
+#define RTT 1000000				// Define round trip time	
 #define MAXBUFSIZE 50
 #define MAXFILESIZE 500000
+/*structure for reliability*/
 struct sendfile
 {
 	int packet_no;
 	char filedata[chunk];
 };
    
-int ret;
+int ret;int itr;
 
 int main (int argc, char * argv[] )
 {
 	struct sendfile *getfile, *putfile;
-	//getfile=malloc(sizeof(struct sendfile));
-	//printf("%d\n",sizeof(struct sendfile));
-	//printf("start\n");
 	FILE *fget=NULL,*fput=NULL;
 	int sock,current_packet;                           //This will be our socket
-	struct sockaddr_in serv, remote;     //"Internet socket address structure"
+	struct sockaddr_in serv, remote;    		 //"Internet socket address structure"
 	socklen_t remote_length = sizeof(remote);       //length of the sockaddr_in structure
-	int nbytes;                        //number of bytes we receive in our message
+	int nbytes;                        		//number of bytes we receive in our message
 	unsigned char buffer[MAXBUFSIZE];             //a buffer to store our received message
 	
-	char delimiter[]=":";
+	char delimiter[]=":";			//delimiter for get and put
+	/*Directory for ls*/	
 	struct dirent *dir;
 	char list[MAXBUFSIZE],recbuf[chunk]; 
 	
@@ -91,7 +90,10 @@ int main (int argc, char * argv[] )
 		
 	}
 	printf("Socket successfully binded\n");
+	struct timeval timeout;
+	timeout.tv_usec=RTT;		//set timeout for receive function
 	
+	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 	while(1)
 	{
 	//waits for an incoming message
@@ -102,70 +104,81 @@ int main (int argc, char * argv[] )
 	num3=strcmp(buffer,"ls");
 	num4=strcmp(buffer,"exit");
 	char *cmp, *token1, *token2;
-	cmp=strstr(buffer,delimiter);
-	char string[4];
-	nbytes=0;
-	struct timeval timeout;
-	timeout.tv_usec=RTT;
-	setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+	cmp=strstr(buffer,delimiter);		//check if delimiter present
+	char string[10];
+	nbytes=0;	
 	if(cmp)
 	{
-		token1=strtok(buffer,delimiter);
+		token1=strtok(buffer,delimiter);		//separate the command and filename
 		token2=strtok(NULL,delimiter);
 		strcpy(buffer_ptr,token2);
 		printf("The strings are %s and %s\n",token1,token2);
 		//printf("not here");
+		/*compare strings with various commands*/
 		num=strcmp(token1,"get");
 		num1=strcmp(token1,"delete");
 		num2=strcmp(token1,"put");
 		
-		if(num==0)		//if(strcmp(token1,"get")==0);
+		if(num==0)		
 		{ 	
 			getfile=malloc(sizeof(struct sendfile));
 			printf("Sending file %s\n",buffer_ptr);
 			bzero(getfile->filedata,sizeof(getfile->filedata));	
 			printf("filename is %s\n", buffer_ptr);
+			/*open file for reading*/
 			fget=fopen(buffer_ptr,"rb");
 			fseek(fget, 0 , SEEK_END);	
-			int fsize = ftell(fget);
+			int fsize = ftell(fget);		//get end of file
 			printf("End : %p\n", fget);
 			printf("File size is %d\n", fsize);
 			fseek(fget, 0, SEEK_SET);
-			rem=fsize;
-			getfile->packet_no=1;
-			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+			rem=fsize;ack=0;
+			getfile->packet_no=1;itr=0;
+			bzero(string,sizeof(string));
+			//setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 			while(rem>0)
 			{	
-				
+				/*check if last byte*/
 				if(rem>chunk)
 					readbyte=chunk;
 				else
 					readbyte=rem;
-	
+				
+				/*read data and verify*/
 				size_t bytes_read=fread(getfile->filedata, sizeof(char),readbyte, fget);			
-				if (bytes_read!=readbyte*sizeof(char))
+				if (bytes_read!=readbyte*sizeof(char))						
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
-			
+				
+				
+				
+				
 				//printf("Sending %d bytes to client\n", chunk);
+				/*send data to receiver*/
 				nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
 				printf("sent packet number =%d\n",getfile->packet_no);
-				//if(rem>0)
-				//{	
-					
-					ret=recvfrom(sock,string,strlen(string),0,(struct sockaddr *)&remote,&remote_length);
-					printf("ret=%d\n",ret);
-					ack=atoi(string);
-					printf("ACK NO =%d\n",ack);
-					if(ack!=getfile->packet_no)
-						nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
-					
-				//}
-				rem-=chunk;
+				/*recieve ack no*/
+				ret=recvfrom(sock,string,sizeof(string),0,(struct sockaddr *)&remote,&remote_length);
+				printf("ret=%d\n",ret);
+				printf("string is %s",string);
+				ack=atoi(string);	//convert string to integer
+				printf("ACK NO =%d\n",ack);
+				//if(itr==0)	exit(0);
+				/*check if the same packet*/
+				if(ack!=getfile->packet_no)
+				{		
+					nbytes=sendto(sock,getfile,readbyte+4,0,(struct sockaddr *)&remote,sizeof(remote));
+				}	
+				else
+				{
+					rem-=readbyte;			//update chunk
+					itr++;
+				}
 				printf("sent size is %d\tsequence number=%d\n",readbyte,getfile->packet_no);
-				
 				printf("remaining size=%d\n ",rem);
-				//sent+=nbytes;
-				getfile->packet_no+=1;
+				sent+=nbytes-4;
+				getfile->packet_no+=1; 	//update packet number
+				//if(itr==99)	exit(0);
+
 			}
 			fclose(fget);
 			free(getfile);
@@ -181,26 +194,33 @@ int main (int argc, char * argv[] )
 		}
 		else if(num2==0)
 		{		
-			//printf("please send");
-			//num=strcmp(token1,"put");
+			/*assign heap for put struct*/
 			putfile=malloc(sizeof(struct sendfile));
-			bzero(putfile->filedata,sizeof(putfile->filedata));
-			nbytes=chunk+4;
+			bzero(putfile->filedata,sizeof(putfile->filedata));		//set the structure as 0s
+			nbytes=chunk+4;						//sum of bufffer and packet_no
+			/*open file for writing*/
 			fput=fopen(token2,"wb");
 			recd=0;ack=0;
 			current_packet=0;
-			setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+			bzero(string,sizeof(string));
+			/*set timeout for receive function*/
+			//setsockopt(sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
 			while(nbytes>=chunk+4)
 				{	
+					
+					/*receive data from client*/
 					nbytes=recvfrom(sock,putfile,chunk+4,0,(struct sockaddr *)&remote,&remote_length);
 					//strncpy(buffer,recbuf,nbytes);
 					printf("packet number=%d\n",(int)putfile->packet_no);
+					/*print packet number in string*/
 					sprintf(string,"%d",(int)putfile->packet_no);
-					printf("string is %s",string);
+					//printf("string is %s",string);
+					/*send back acknowledgement*/
 					sendto(sock,string,strlen(string),0,(struct sockaddr *)&remote,remote_length);
 					printf("bytes recieved=%d\n",nbytes);
 					//recd+=nbytes;
 					printf("bytes recieved=%d\tsequence number=%d\n",nbytes,putfile->packet_no);
+					/*verify if we are getting the next packet*/
 					if(putfile->packet_no==current_packet+1)
 					{
 						recd+=nbytes-4;
@@ -210,37 +230,29 @@ int main (int argc, char * argv[] )
 				}	
 				printf("received size is %d\n",recd);
 				ack=0;
-				fclose(fput);
-				free(putfile);
+				fclose(fput);		//close file descriptor
+				free(putfile);		//free putfile
 		}
 	
 	}	
 	else if(num3==0)
 	{
-		//num=strcmp(buffer,"ls");
-		//printf("num=%d",num);
-		//if(strcmp(buffer,"ls")==0);
-		//if(num==0)
-		//{	
-		//printf("buffer is %s\n",buffer);
-		//memset(list,0,sizeof(list));
+	
 		bzero(list,sizeof(list));
 		char *list_ptr=&list[0];
+		/*Open directory*/
 		d = opendir(".");
 		printf("listing the files\n");	
 		if (d)
 		{	
 			while ((dir = readdir(d)) != NULL)
-			{	printf("karo\n");
-				//printf("Directory entry : %s\n",dir->d_name);
-				//printf("%p\n",list);
-				strncpy(list_ptr,dir->d_name,strlen(dir->d_name));
-				//printf("%p\n",list);
-				list_ptr+= strlen(dir->d_name);
+			{	
+				strncpy(list_ptr,dir->d_name,strlen(dir->d_name));	//copy the directory list in char array
+				list_ptr+= strlen(dir->d_name);				//increment array
 				strncpy(list_ptr,"\n",strlen("\n"));
 				list_ptr+= strlen("\n");
 			}
-			//list_ptr=list;
+			//send to Client
 			nbytes=sendto(sock,list,strlen(list),0,(struct sockaddr *)&remote,sizeof(remote));
 		}
 		printf("List is\n %s\n string size=%d\n",list,(int)strlen(list));
@@ -248,6 +260,7 @@ int main (int argc, char * argv[] )
 	}
 	else if(num4==0)
 	{
+	/*close socket*/
 	close(sock);
 	printf("Socket Closed\n");
 	break;
