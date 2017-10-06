@@ -21,6 +21,7 @@
 #define RTT 1000000				// Define round trip time	
 #define MAXBUFSIZE 50
 #define MAXFILESIZE 500000
+#define encryption
 /*structure for reliability*/
 struct sendfile
 {
@@ -28,7 +29,8 @@ struct sendfile
 	char filedata[chunk];
 };
    
-int ret;int itr;
+int ret;int itr,encrypt;
+char key='c';
 
 int main (int argc, char * argv[] )
 {
@@ -148,9 +150,12 @@ int main (int argc, char * argv[] )
 				size_t bytes_read=fread(getfile->filedata, sizeof(char),readbyte, fget);			
 				if (bytes_read!=readbyte*sizeof(char))						
 					printf("Incomplete read. Read : %d, Expected : %ld\n", (int)bytes_read,(readbyte*sizeof(char)));
+				/*Exor the data with a key for encryption*/				
+				#ifdef encryption
+				for(encrypt=0;encrypt<readbyte;encrypt++)
+					getfile->filedata[encrypt]^=key;
 				
-				
-				
+				#endif
 				
 				//printf("Sending %d bytes to client\n", chunk);
 				/*send data to receiver*/

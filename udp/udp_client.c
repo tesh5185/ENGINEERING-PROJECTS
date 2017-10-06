@@ -16,13 +16,15 @@
 #define MAXBUFSIZE 25000
 #define MAXFILESIZE 500000
 #define RTT 1000000
+#define encryption
 /* You will have to modify the program below */
 struct receivefile
 {
    int packet_no;
    char recbuf[chunk];
 };
-int current_packet=0,ret;
+int current_packet=0,ret,encrypt=0;
+char key='c';
 int main (int argc, char * argv[])
 {
 	struct receivefile *getfile, *putfile;
@@ -133,7 +135,13 @@ int main (int argc, char * argv[])
 				/*verify if we are getting the next packet*/
 				if(getfile->packet_no==current_packet+1)
 				{
-					recd+=nbytes-4;				
+					recd+=nbytes-4;
+					/*Exor the data with a key for decryption*/
+					#ifdef encryption
+					for(encrypt=0;encrypt<nbytes-4;encrypt++)
+							getfile->recbuf[encrypt]^=key;			
+					
+					#endif
 					fwrite(getfile->recbuf,1,nbytes-4, fget);	
 				}
 				current_packet=getfile->packet_no;			
