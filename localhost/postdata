@@ -1,0 +1,263 @@
+POST /files/text1.txt HTTP/1.0
+Host: localhost
+Connection: keep-alive
+
+POST DATA
+
+GET /files/text1.txt HTTP/1.2\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\nPOSTDATA
+GET /files/text1.txt HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\nPOSTDATA
+GET /indexq.html HTTP/1.1\r\nHost: localhost\r\nConnection: keep-alive\r\n\r\n
+POST /files/text1.txt HTTP/1.1\nHost: localhost\nContent-Length: 9\n\nPOST DATA
+POST /files/text1.txt HTTP/1.1\r\nConnection: keep-alive\r\n\r\nPOST DATA
+{
+	signal(SIGINT,ISRC);		
+	/*conn=strrchr(buffer2,':');*/
+	//conn=strstr(buffer2,"Connection:");
+	//conn=strtok(conn,"\n");
+	//conn=conn+2;
+	//printf("Connection is %s\n",conn);
+	//while(strcmp(conn,"keep-alive")==0)
+	//{
+	//conn=strrchr(buffer1,':');
+	//conn=conn+2;
+	//printf("Connection is %s\n",conn);
+	strcpy(conn,"keep-alive");
+	//while(strcmp(conn,"keep-alive")==0)
+	{
+	/*bzero(buffer,sizeof(buffer));
+	bzero(con_type,sizeof(con_type));
+	bzero(con_length,sizeof(con_length));
+	bzero(con_length1,sizeof(con_length1));
+	char read_bytes=read(client_sock1,buffer,sizeof(buffer));
+	//printf("buffer is %s and bytes read is %d\n",buffer,read_bytes);
+	strcpy(buffer1,buffer);
+	strcpy(buffer2,buffer);
+	printf("Old child accepted\n return value =%d\n",client_sock1);
+	printf("Child process id =%d\n",getpid());
+	conn=strstr(buffer2,"Connection:");
+	conn=strtok(conn,":");
+	conn=strtok(NULL,"\r");
+	conn=conn+1;
+	printf("Connection is %s\n",conn);*/
+	
+	//setsockopt(client_sock,SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&timeout, sizeof(struct timeval));
+	bzero(buffer,sizeof(buffer));
+	bzero(con_type,sizeof(con_type));
+	bzero(con_length,sizeof(con_length));
+	bzero(con_length1,sizeof(con_length1));
+	char read_bytes=read(client_sock1,buffer,sizeof(buffer));
+	//printf("buffer is %s and bytes read is %d\n",buffer,read_bytes);
+	strcpy(buffer1,buffer);
+	strcpy(buffer2,buffer);
+	printf("New child accepted\n return value =%d\n",client_sock1);
+	printf("Child process id =%d\n",getpid());
+	conn=strstr(buffer2,"Connection:");
+	conn=strtok(conn,":");
+	conn=strtok(NULL,"\r");
+	conn=conn+1;
+	printf("Connection is %s\n",conn);
+	method = strtok(buffer,delimiter);
+	url = strtok(NULL,delimiter);
+	version = strtok(NULL,"\n");
+	printf("tokens are %s %s %s\n",method,url,version);
+	
+	if(strcmp(method,"GET")!=0)
+	{	
+		if(strcmp(method,"POST")!=0)
+		{
+			if(strcmp(method,"HEAD")!=0)
+			{			
+				printf("400 BAD Method\n");
+				char error[]="HTTP/1.1 400 Bad Request\n\n<html><body>400 Bad Request Reason: Invalid Method :<<request method>></body></html>";			/*invalid Method*/
+				write(client_sock1,error,strlen(error));
+			}
+			else
+			{
+				printf("501 Not Implemented");
+				char error[]="HTTP/1.1 501 Not Implemented\n\n<html><body>501 Not Implemented<<error type>>:<<requested data>></body></html>";			//not implemented method
+				write(client_sock1,error,strlen(error));
+			}
+			//continue;
+		}
+			
+		
+				
+		
+	}
+	if(strncmp(version,"HTTP/1.1",8)!=0)
+	{				
+		printf("400 BAD version\n");
+		char error[]="HTTP/1.1 400 Bad Request\n\n<html><body>400 Bad Request Reason: Invalid HTTP-version :<<request version>></body></html>";
+		//invalid http version
+		write(client_sock1,error,strlen(error));
+		//exit(0);
+	}
+	if(url[0]!='/')
+	{	
+		printf("400 BAD URL\n");
+		char error[]="HTTP/1.1 400 Bad Request\n\n<html><body>400 Bad Request Reason: Invalid URL :<<request url>></body></html>";		
+		write(client_sock1,error,strlen(error));
+		exit(0);
+		//invalid URL
+	}		
+	//char string[]="HTTP/1.1 200 OK\r\n\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>";
+	char string1[]="HTTP/1.1 200 OK\n\n";
+	bzero(base,sizeof(base));
+	if(strcmp(method,"POST")==0)
+	{
+		printf("just here\n");
+		url+=1;
+		//parsing for method, URL and version
+		printf("buffer is %s\n",buffer1);
+		something=strstr(buffer1,"Content-Length:");
+		//something+=2;
+		printf("something is %s\n",something);
+		something=strtok(something,"\n\n");
+		printf("something is %s\n",something);
+		something=strtok(NULL,"\n");
+		//something+=1;
+		printf("something is %s\n",something);
+		something=strtok(NULL,"\n");
+		printf("something is %s\n",something);
+		//something=strtok(NULL,"\n\n");
+		//printf("something is %s\n",something);
+		//open file pointer in append mode
+		furl=fopen(url,"a+");
+		if(furl)
+		{
+			//fwrite(end,sizeof(char),strlen(end),furl);
+			fwrite(something,sizeof(char),strlen(something),furl);
+			//fseek(furl,0,SEEK_SET);
+			//fread(postdata,sizeof(char),sizeof(postdata),furl);
+			//printf("postdata is %s\n",postdata); //post data
+			fclose(furl);
+		}
+		else
+		{
+			sprintf(string2,"HTTP/1.1 404 Not Found\n\n<html><body>404 Not Found Reason URL does not exist :<<requested url>></body></html>");
+			write(client_sock1,string2,strlen(string2));
+		}
+		
+		furl=fopen(url,"r");// open in read mode
+		fseek(furl, 0 , SEEK_END);
+		int fsize=ftell(furl);
+		fseek(furl, 0 , SEEK_SET);
+		nbytes=fread(postdata,sizeof(char),sizeof(postdata),furl);
+		fclose(furl);
+		printf("postdata is %s and write size is %d\n",postdata,nbytes); //post data
+		//write(client_sock1,string1,strlen(string1));
+		write(client_sock1,postdata,nbytes);
+		bzero(postdata,sizeof(postdata));
+		//exit(0);
+	}
+	else
+	{
+		//first request for index.html
+		num=strcmp(url,"/");
+		if(num==0)
+		{
+			//sprintf(con_type,"Content type:text/html\n");
+			//concatenate strings
+			strcpy(con_type,type);
+			strcat(con_type,html);
+			//strcat(con_type,end);
+			fp=fopen("index.html","rb");
+			printf("First\n");
+			fseek(fp, 0 , SEEK_END);	
+			int fsize = ftell(fp);
+			printf("File size is %d\n", fsize);
+			fseek(fp, 0, SEEK_SET);
+			sprintf(string1,"HTTP/1.1 200 Document Follows\n");	// header
+			sprintf(con_length1,"%d\n",fsize);
+			strcpy(con_length,length);
+			strcat(con_length,con_length1);
+			strcat(con_length,endt);
+			printf("%s %s\n",con_type,con_length);
+			//printf("%s %s\t %d %d\n",con_type,con_length,strlen(con_type),strlen(con_length));
+			write(client_sock1,string1,strlen(string1));
+			write(client_sock1,con_type,strlen(con_type));
+			write(client_sock1,con_length,strlen(con_length));
+			while((nbytes=fread(base,sizeof(char),sizeof(base),fp)) > 0)
+			{	
+			
+				//printf("nbytes=%d\n",(int)strlen(base));
+				write(client_sock1,base,nbytes);
+				bytes_read+=nbytes;
+			}
+				
+				
+			fclose(fp);
+			nbytes=1;
+			printf("Bytes read=%d\n",bytes_read);
+					
+		}
+		else
+		{	
+			url+=1;
+			printf("Second\t and url is %s\n",url);
+			bzero(string2,sizeof(string2));
+			furl=fopen(url,"rb");
+			url1=strtok(url,".");
+			url1=strtok(NULL,".");
+			//printf("url after token =%s\n",url1);
+			if (furl)
+			{
+
+				strcpy(con_type,type);
+				//printf("con_type is %s\n",con_type);
+				if (strcmp(url1,"html")==0)
+					strcat(con_type,html);
+				else if(strcmp(url1,"htm")==0)
+					strcat(con_type,html);
+				else if(strcmp(url1,"txt")==0)
+					strcat(con_type,txt);
+				else if(strcmp(url1,"gif")==0)
+					strcat(con_type,gif);
+				else if(strcmp(url1,"jpg")==0)
+					strcat(con_type,jpg);
+				else if(strcmp(url1,"jpeg")==0)
+					strcat(con_type,jpeg);
+				else if(strcmp(url1,"png")==0)
+					strcat(con_type,png);
+				else
+					strcat(con_type,end);
+
+				printf("%p\n",furl);
+				fseek(furl, 0 , SEEK_END);	
+				int fsize = ftell(furl);
+				printf("Third\n");
+				printf("File size is %d\n", fsize);
+				fseek(furl, 0, SEEK_SET);
+				//con_type="Content"
+				sprintf(string2,"HTTP/1.1 200 Document Follows\n");
+				//printf("String1 is %s\n",string1);
+				sprintf(con_length1,"%d\n",fsize);
+				strcpy(con_length,length);
+				strcat(con_length,con_length1);
+				strcat(con_length,"\n");
+				printf("%s %s\n",con_type,con_length);
+				write(client_sock1,string2,strlen(string2));
+				write(client_sock1,con_type,strlen(con_type));
+				write(client_sock1,con_length,strlen(con_length));
+					
+				while((nbytes=fread(base,sizeof(char),sizeof(base),furl)) > 0)
+				{	
+				
+					//printf("nbytes=%d\n",nbytes);
+					write(client_sock1,base,nbytes);
+					bytes_read+=nbytes;
+				}	
+				//printf("Fourth\n");
+				printf("Bytes read=%d\n",bytes_read);
+				fclose(furl);
+				nbytes=1;	
+			}
+		
+			else
+			{
+				sprintf(string2,"HTTP/1.1 404 Not Found\n\n<html><body>404 Not Found Reason URL does not exist :<<requested url>></body></html>");		//requested file not found
+				write(client_sock1,string2,strlen(string2));
+			}
+		}
+		}
+	}	
