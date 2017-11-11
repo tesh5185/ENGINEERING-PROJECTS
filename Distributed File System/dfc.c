@@ -11,6 +11,7 @@
 int senddata(int socketa,char* buffer,size_t length);
 int receivedata(int socketa,char* buffer,size_t length);
 int sendpart(char *buffer,int socket,int partno);
+char tokenization(char *buffer[],char *content,int num);
 char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf;
 char *delimiter=" ";
 const int chunk=1024;
@@ -22,13 +23,14 @@ uint16_t md5,mod;
 bool flag=false;
 //int sendrec(socket,)
 char *DFS1, *DFS2, *DFS3, *DFS4,*USER, *PASS;
-char reply[2000];
+char reply[2000],content1[500],content2[500],content3[500],content4[500];
 char argument[100],argument1[100];
 char sub1[]=".1";
 char sub2[]=".2";
 char sub3[]=".3";
 char sub4[]=".4";
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
+char *token1[50],*token2[50],*token3[50],*token4[50];
 void connecttoservers(void)
 {
 	
@@ -366,6 +368,26 @@ void main(int argc, char *argv[])
 			returnval3=authenticate(sock3);
 			returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			receivedata(sock1,content1,sizeof(content1));
+			receivedata(sock2,content2,sizeof(content2));
+			receivedata(sock3,content3,sizeof(content3));
+			receivedata(sock4,content4,sizeof(content4));
+			printf("Files in directory1 are %s\n",content1);
+			printf("Files in directory2 are %s\n",content2);
+			printf("Files in directory3 are %s\n",content3);
+			printf("Files in directory4 are %s\n",content4);
+			/*int i=0;
+			token1[i]=strtok(content1,delimiter);
+			while(token1[i]!=NULL)
+			{
+				token1[i+1]=strtok(NULL,delimiter);
+				printf("tokens for DFS1 are is %s\n",token1[i]);				
+				i++;
+			}*/
+			tokenization(token1,content1,1);
+			tokenization(token2,content2,2);
+			tokenization(token3,content3,3);
+			tokenization(token4,content4,4);
 			flag=false;	
 
 
@@ -473,4 +495,17 @@ int sendpart(char *buffer,int socket,int partno)
 	bytes_sent=0;
 	bzero(tempbuf,sizeof(tempbuf));
 
+}
+
+char tokenization(char *buffer[],char *content,int num)
+{
+	int i=0;
+	buffer[i]=strtok(content,delimiter);
+	while(buffer[i]!=NULL)
+	{
+		buffer[i+1]=strtok(NULL,delimiter);
+		printf("tokens for server %d are is %s\n",num,buffer[i]);				
+		i++;
+	}
+			
 }

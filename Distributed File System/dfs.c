@@ -28,6 +28,7 @@ char path[100],count;
 char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname;
 char con[100];
 FILE *fpp;
+char content[500];
 void ISRP(int argumet)
 {
 	close(client_sock);
@@ -67,6 +68,8 @@ int main(int argc, char *argv[])
 	}
 	tempbuf=malloc(partsize*sizeof(char));
 	tempbuf2=malloc(partsize*sizeof(char));
+	//content=malloc(chunk*sizeof(char));
+	//content_ptr=content;
 	bzero(&serv,sizeof(serv));                    //zero the struct
 	serv.sin_family = AF_INET;                   //address family
 	serv.sin_port = htons(atoi(argv[2]));        //htons() sets the port # to network byte order
@@ -242,9 +245,17 @@ int main(int argc, char *argv[])
 					strcat(path,argv[1]);
 					strcat(path,"/");
 					strcat(path,user);
-					printf("Path uptill now is %s*\n",path);
-
-	
+					printf("Path is %s\n",path);
+					d = opendir(path);
+					while ((dir = readdir(d)) != NULL)
+					{	
+						strcat(content,dir->d_name);
+						strcat(content," ");
+						
+					}
+					printf("Content is %s\n",content);
+					write(client_sock , content ,sizeof(content));
+							
 				}
 			}
 			else
