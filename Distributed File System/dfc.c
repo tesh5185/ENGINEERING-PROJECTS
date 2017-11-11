@@ -5,46 +5,122 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <signal.h>
+#include <openssl/md5.h>
 #define partsize 1024*1024*1024
-
-char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4;
+int senddata(int socketa,char* buffer,size_t length);
+int receivedata(int socketa,char* buffer,size_t length);
+int sendpart(char *buffer,int socket,int partno);
+char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf;
 char *delimiter=" ";
-
-//trial Linked lists
-/*struct Node
+const int chunk=1024;
+void connecttoservers(void);
+int authenticate(int socketa);
+struct sockaddr_in server1,server2,server3,server4;
+int sock1,sock2,sock3,sock4,temp,rem_bytes,fsize;
+uint16_t md5,mod;
+//int sendrec(socket,)
+char *DFS1, *DFS2, *DFS3, *DFS4,*USER, *PASS;
+char reply[2000];
+char argument[100],argument1[100];
+char sub1[]=".1";
+char sub2[]=".2";
+char sub3[]=".3";
+char sub4[]=".4";
+int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
+void connecttoservers(void)
 {
-  char DFS[25];
-  struct Node *next;
-};
-*/
-char *DFS1, *DFS2, *DFS3, *DFS4;
-char reply[20];
+	
+	server1.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server1.sin_family = AF_INET;
+	server1.sin_port = htons(atoi(dfs1));
+	server2.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server2.sin_family = AF_INET;
+	server2.sin_port = htons(atoi(dfs2));
+	
+	server3.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server3.sin_family = AF_INET;
+	server3.sin_port = htons(atoi(dfs3));
+	server4.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server4.sin_family = AF_INET;
+	server4.sin_port = htons(atoi(dfs4));
+	
+	if ((sock1 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock1);
+	}
+	printf("Socket1 successfully created\n");
+	if ((sock2 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock2);
+	}
+	printf("Socket2 successfully created\n");
+	if ((sock3 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock3);
+	}
+	printf("Socket3 successfully created\n");
+	if ((sock4 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock4);
+	}
+	printf("Socket4 successfully created\n");
+	
+	if (connect(sock1 , (struct sockaddr *)&server1 , sizeof(server1)) < 0)
+	{
+		perror("connect failed. Error");
+	}
+	else	 
+		puts("Connected to Server1");
+	if (connect(sock2 , (struct sockaddr *)&server2 , sizeof(server2)) < 0)
+	{
+		perror("connect failed. Error");
+	}
+	else	 
+		puts("Connected to server 2");
+	if (connect(sock3 , (struct sockaddr *)&server3 , sizeof(server3)) < 0)
+	{
+		perror("connect failed. Error");
+	}
+	else	
+		puts("Connected to server 3");
+	if (connect(sock4 , (struct sockaddr *)&server4 , sizeof(server4)) < 0)
+	{
+		perror("connect failed. Error");
+	}
+	else
+		puts("Connected to server 4");
+
+}
 void main(int argc, char *argv[])
 {
 	
-	/*struct Node *DFS1=NULL;
-	struct Node *DFS2=NULL;
-	struct Node *DFS3=NULL;
-	struct Node *DFS4=NULL;
-	DFS1= (struct Node*)malloc(sizeof(struct Node));
-	DFS2= (struct Node*)malloc(sizeof(struct Node));
-	DFS3= (struct Node*)malloc(sizeof(struct Node));
-	DFS4= (struct Node*)malloc(sizeof(struct Node));*/
+
+	if (argc != 2)
+	{
+		printf ("USAGE:  <port>\n");
+		exit(1);
+	}
+	
+	MD5_CTX mdContext;
+	unsigned char len[MD5_DIGEST_LENGTH];
+
+
 	part1=malloc(partsize*sizeof(char));
 	part2=malloc(partsize*sizeof(char));
 	part3=malloc(partsize*sizeof(char));
 	part4=malloc(partsize*sizeof(char));
-	con=malloc(50*sizeof(char));
+	tempbuf=malloc(partsize*sizeof(char));
+	con=malloc(100*sizeof(char));
 	DFS1=malloc(25*sizeof(char));
 	DFS2=malloc(25*sizeof(char));
 	DFS3=malloc(25*sizeof(char));
 	DFS4=malloc(25*sizeof(char));
+	USER=malloc(25*sizeof(char));
 	FILE *fp,*ft, *fcon;
 	int nbytes;
 	
-	char command[100];
-	//fgets(command,sizeof(command),stdin);
-	fcon=fopen("dfc.conf","r");
+
+	fcon=fopen(argv[1],"r");
 	
 	for(int i=0;i<=5;i++)
 	{
@@ -78,34 +154,25 @@ void main(int argc, char *argv[])
 			strcpy(DFS4,dfs4);
 			//printf("%s %d\n",dfs4,(int)strlen(dfs4));
 		}
+		if(strstr(con,"Username")!=NULL)
+		{		
+			user=strtok(con,delimiter);
+			user=strtok(NULL,"\n");
+			strcpy(USER,user);
+			//printf("%s %d\n",user,(int)strlen(user));
+		}
+		if(strstr(con,"Password")!=NULL)
+		{		
+			pass=strtok(con,delimiter);
+			pass=strtok(NULL,"\n");
+			//strcpy(USER,user);
+			//printf("%s %d\n",pass,(int)strlen(pass));
+		}
 	}
-	/*printf("%s %d\n",DFS1,(int)strlen(DFS1));
-	printf("%s %d\n",DFS2,(int)strlen(DFS2));
-	printf("%s %d\n",DFS3,(int)strlen(DFS3));
-	printf("%s %d\n",DFS4,(int)strlen(DFS4));*/	
+	
+	printf("Username is %s and Password is %s\n",USER,pass);
 	fclose(fcon);
-	int sock1,sock2,sock3,sock4;
-	struct sockaddr_in server1,server2,server3,server4;
-	if ((sock1 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock1);
-	}
-	printf("Socket1 successfully created\n");
-	if ((sock2 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock2);
-	}
-	printf("Socket2 successfully created\n");
-	if ((sock3 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock3);
-	}
-	printf("Socket3 successfully created\n");
-	if ((sock4 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock4);
-	}
-	printf("Socket4 successfully created\n");
+
 	
 	dfs1=strtok(DFS1,":");
 	dfs1=strtok(NULL,":");
@@ -119,157 +186,266 @@ void main(int argc, char *argv[])
 	dfs4=strtok(DFS4,":");
 	dfs4=strtok(NULL,":");
 	DFS4=strtok(DFS4,delimiter);
-	/*printf("before and after %s*%s\n",DFS1,dfs1);
-	printf("before and after %s*%s\n",DFS2,dfs2);
-	printf("before and after %s*%s\n",DFS3,dfs3);
-	printf("before and after %s*%s\n",DFS4,dfs4);*/
-	server1.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server1.sin_family = AF_INET;
-	server1.sin_port = htons(atoi(dfs1));
-	server2.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server2.sin_family = AF_INET;
-	server2.sin_port = htons(atoi(dfs2));
-	
-	server3.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server3.sin_family = AF_INET;
-	server3.sin_port = htons(atoi(dfs3));
-	server4.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server4.sin_family = AF_INET;
-	server4.sin_port = htons(atoi(dfs4));
-	
-	if (connect(sock1 , (struct sockaddr *)&server1 , sizeof(server1)) < 0)
-    {
-        perror("connect failed. Error");
-        //return 1;
-    }
-     
-    puts("Connected\n");
-	
-	if( send(sock1 , DFS1 , strlen(DFS1) , 0) < 0)
-        {
-            puts("Send failed");
-            //return 1;
-        }
-         
-        //Receive a reply from the server
-    if( recv(sock1, reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            //break;
-        }
-	printf("Received message is %s\n",reply);
-	if (connect(sock2 , (struct sockaddr *)&server2 , sizeof(server2)) < 0)
-    {
-        perror("connect failed. Error");
-        //return 1;
-    }
-     
-    puts("Connected\n");
-	
-	if( send(sock2 , DFS2 , strlen(DFS2) , 0) < 0)
-        {
-            puts("Send failed");
-            //return 1;
-        }
-         
-        //Receive a reply from the server
-    if( recv(sock2 , reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            //break;
-        }
-	printf("Received message is %s\n",reply);
-	if (connect(sock3 , (struct sockaddr *)&server3 , sizeof(server3)) < 0)
-    {
-        perror("connect failed. Error");
-        //return 1;
-    }
-     
-    puts("Connected\n");
-	
-	if( send(sock3 , DFS3 , strlen(DFS3) , 0) < 0)
-        {
-            puts("Send failed");
-            //return 1;
-        }
-         
-        //Receive a reply from the server
-    if( recv(sock3 , reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            //break;
-        }
-	printf("Received message is %s\n",reply);
-	if (connect(sock4 , (struct sockaddr *)&server4 , sizeof(server4)) < 0)
-    {
-        perror("connect failed. Error");
-        //return 1;
-    }
-     
-    puts("Connected\n");
-	
-	if( send(sock4 , DFS4 , strlen(DFS4) , 0) < 0)
-        {
-            puts("Send failed");
-            //return 1;
-        }
-         
-        //Receive a reply from the server
-    if( recv(sock4 , reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            //break;
-        }
-	printf("Received message is %s\n",reply);
-	
 
-
-
-
-	/*gets(command);
-		
-
-	fp= fopen(command,"r");
+	fgets(argument1,100,stdin);
+	strcpy(argument,argument1);
+	strcat(argument,USER);
+	strcat(argument,delimiter);
+	strcat(argument,pass);
+	printf("total string is %s\n",argument);
+	command=strtok(argument1,delimiter);
+	file=strtok(NULL,"\n");
+	printf("Command is %s and file is %s\n",argument1,file);		
+	MD5_Init (&mdContext);
+	fp= fopen(file,"r");
 	fseek(fp, 0 , SEEK_END);
-	int fsize=ftell(fp);
+	fsize=ftell(fp);
 	
 	fseek(fp, 0 , SEEK_SET);
 	printf("Total file size is %d\n", fsize);
-	int psize=fsize/4;
+	
+	psize=fsize/4;
 	printf("part size is %d\n", psize);
 	nbytes=fread(part1,sizeof(char),psize,fp);
+	MD5_Update (&mdContext, part1, nbytes);
 	printf("Bytes read are %d\n",nbytes);
 	nbytes=fread(part2,sizeof(char),psize,fp);
 	printf("Bytes read are %d\n",nbytes);
+	MD5_Update (&mdContext, part2, nbytes);
 	nbytes=fread(part3,sizeof(char),psize,fp);
 	printf("Bytes read are %d\n",nbytes);
+	MD5_Update (&mdContext, part3, nbytes);
 	nbytes=fread(part4,sizeof(char),(fsize-3*psize),fp);
 	printf("Bytes read are %d\n",nbytes);
+	MD5_Update (&mdContext, part4, nbytes);
+	MD5_Final (len,&mdContext);
+	for(int i = 0; i < MD5_DIGEST_LENGTH; i++) 
+		printf("%02x",len[i]);
+	printf("\n");
+	md5=len[MD5_DIGEST_LENGTH-1];
+	mod=md5%4;
+	printf("the modulus is %d\n",mod);
 	
 	fclose(fp);
+	
+	connecttoservers();
+	//while(1)
+	//{
+		bytes_sent=0;
+		if(strcmp(command,"PUT")==0)
+		{
+			returnval1=authenticate(sock1);
+			returnval2=authenticate(sock2);
+			returnval3=authenticate(sock3);
+			returnval4=authenticate(sock4);
+			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			if (mod==0)
+			{
+				if(returnval1==1)
+				{
+					sendpart(part1,sock1,1);
+					//senddata(sock1,".1",sizeof(".1"));
+					sendpart(part2,sock1,2);
+					//senddata(sock1,".2",sizeof(".2"));
+				}
+				if(returnval2==1)
+				{
+					sendpart(part2,sock2,2);
+					//senddata(sock2,".2",sizeof(".2"));
+					sendpart(part3,sock2,3);
+					//senddata(sock2,".3",sizeof(".2"));
+				}
+				if(returnval3==1)
+				{
+					sendpart(part3,sock3,3);
+					//senddata(sock3,".3",sizeof(".2"));
+					sendpart(part4,sock3,4);
+					//senddata(sock3,".4",sizeof(".2"));
+				}
+				if(returnval4==1)
+				{
+					sendpart(part4,sock4,4);	
+					sendpart(part1,sock4,1);
+				
+				}
+				
+			}
+			else if (mod==1)
+			{
+				if(returnval1==1)
+				{
+					sendpart(part4,sock1,4);
+					sendpart(part1,sock1,1);
+				}
+				if(returnval2==1)
+				{
+					sendpart(part1,sock2,1);
+					sendpart(part2,sock2,2);
+				}
+				if(returnval3==1)
+				{
+					sendpart(part2,sock3,2);
+					sendpart(part3,sock3,3);
+				}
+				if(returnval4==1)
+				{
+					sendpart(part3,sock4,3);
+					sendpart(part4,sock4,4);
+				}
+				
+			}
+			else if (mod==2)
+			{
+				if(returnval1==1)
+				{
+					sendpart(part3,sock1,3);
+					sendpart(part4,sock1,4);
+				}
+				if(returnval2==1)
+				{
+					sendpart(part4,sock2,4);
+					sendpart(part1,sock2,1);
+				}
+				if(returnval3==1)
+				{
+					sendpart(part1,sock3,1);
+					sendpart(part2,sock3,2);
+				}
+				if(returnval4==1)
+				{
+					sendpart(part2,sock4,2);
+					sendpart(part3,sock4,3);
+				}
+				
+			}
+			else if (mod==3)
+			{
+				if(returnval1==1)
+				{
+					sendpart(part2,sock1,2);
+					sendpart(part3,sock1,3);
+				}
+				if(returnval2==1)
+				{
+					sendpart(part3,sock2,3);
+					sendpart(part4,sock2,4);
+				}
+				if(returnval3==1)
+				{
+					sendpart(part4,sock3,4);
+					sendpart(part1,sock3,1);
+				}
+				if(returnval4==1)
+				{
+					sendpart(part1,sock4,1);
+					sendpart(part2,sock4,2);
+				}
+				
+			}
+			
+			
+		}
+	
+	/*
+	if (part1!=NULL)
+		free(part1);
+
+	if (part2!=NULL)
+		free(part2);
+
+	if (part3!=NULL)
+		free(part3);
+
+	if (part4!=NULL)
+		free(part4);
 	*/
+	if (con!=NULL)
+		free(con);
+	
+	if (DFS1!=NULL)
+		free(DFS1);
 
+	if (DFS2!=NULL)
+		free(DFS2);
 
-	/*ft=fopen("ex_copy.pdf","w");
-	nbytes=fwrite(part1,sizeof(char),psize,fp);
-	printf("Bytes written are %d\n",nbytes);
-	nbytes=fwrite(part2,sizeof(char),psize,fp);
-	printf("Bytes written are %d\n",nbytes);
-	nbytes=fwrite(part3,sizeof(char),psize,fp);
-	printf("Bytes written are %d\n",nbytes);
-	nbytes=fwrite(part4,sizeof(char),(fsize-3*psize),fp);
-	printf("Bytes written are %d\n",nbytes);
-	fseek(ft,0,SEEK_END);
-	fsize=ftell(ft);
-	printf("Total file size is %d\n", fsize);
-	fclose(ft);*/
-	free(part1);
-	free(part2);
-	free(part3);
-	free(part4);
-	free(con);
-	free(DFS1);
-	free(DFS2);
-	free(DFS3);
-	free(DFS4);
+	if (DFS3!=NULL)
+		free(DFS3);
+
+	if (DFS4!=NULL)
+		free(DFS4);
+
+	if (USER!=NULL)
+		free(USER);
+}
+int senddata(int socketa,char* buffer,size_t length)
+{
+	
+	int returndata;
+	if((returndata=send(socketa , buffer , length , 0)) < 0)
+	{
+		puts("Send failed");
+	}
+	return returndata;
+}
+int receivedata(int socketa,char* buffer,size_t length)
+{
+	bzero(buffer,length);
+	if( recv(socketa , buffer , length , 0) < 0)
+	{
+		puts("recv failed");	       
+	}	
+	printf("Received message is %s\n",buffer);
+
+}
+int authenticate(int socketa)
+{
+	senddata(socketa,argument,sizeof(argument));  
+	receivedata(socketa,reply,sizeof(reply));
+	if(strcmp(reply,"pass")==0)
+		return 1;
+	else
+		return 0;
+}
+int sendpart(char *buffer,int socket,int partno)
+{
+	tempbuf=buffer;
+	//returnval1=chunk;
+	//printf("Pehla padav, %d\n",returnval);
+	if(partno==4)
+		rem_bytes=fsize-3*psize;
+	else
+		rem_bytes=psize;
+	
+	while(rem_bytes>0)
+	{
+		//printf("Dusra padav\n");
+		if(rem_bytes>=chunk)
+			temp=chunk;
+
+		else
+			temp=rem_bytes;
+	
+	int	returnval=senddata(socket,tempbuf,temp);
+		//printf("Bytes sent are%d\n",returnval);
+		printf("Data sent is %s\n",tempbuf);
+		bytes_sent+=returnval;
+		tempbuf+=chunk;
+		rem_bytes-=chunk;
+		//printf("Data sent is%s\n",tempbuf);
+						
+	}
+	printf("Total Bytes sent are%d\n",bytes_sent);
+	receivedata(socket,reply,sizeof(reply));
+	if(partno==1)
+		senddata(socket,".1",sizeof(".1"));
+	else if(partno==2)
+		senddata(socket,".2",sizeof(".2"));
+	else if(partno==3)
+		senddata(socket,".3",sizeof(".3"));
+	else
+		senddata(socket,".4",sizeof(".4"));
+
+	bytes_sent=0;
+	bzero(tempbuf,sizeof(tempbuf));
+
 }
