@@ -11,7 +11,7 @@
 int senddata(int socketa,char* buffer,size_t length);
 int receivedata(int socketa,char* buffer,size_t length);
 int sendpart(char *buffer,int socket,int partno);
-char tokenization(char *buffer[],char *content,int num);
+int tokenization(char *buffer[],char *content,int num);
 char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf;
 char *delimiter=" ";
 const int chunk=1024;
@@ -31,6 +31,9 @@ char sub3[]=".3";
 char sub4[]=".4";
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
 char *token1[50],*token2[50],*token3[50],*token4[50];
+char *ext1[25], *ext2[25],*ext3[25], *ext4[25];
+char *top[50]
+int j;
 void connecttoservers(void)
 {
 	
@@ -384,10 +387,52 @@ void main(int argc, char *argv[])
 				printf("tokens for DFS1 are is %s\n",token1[i]);				
 				i++;
 			}*/
-			tokenization(token1,content1,1);
-			tokenization(token2,content2,2);
-			tokenization(token3,content3,3);
-			tokenization(token4,content4,4);
+			returnval1=tokenization(token1,content1,1);
+			returnval2=tokenization(token2,content2,2);
+			returnval3=tokenization(token3,content3,3);
+			returnval4=tokenization(token4,content4,4);
+			j=0;
+			for(int i=0;i<returnval1;i++)
+			{	
+				printf("tokens for server1 are %s\n",token1[i]);		
+				if ((strlen(token1[i]))>2)
+				{	
+					token1[i]=strtok(token1[i],".");
+					ext1[i]=strtok(NULL,"\0");
+					printf("file is %s and extention %s\n",token1[i],ext1[i]);
+				}					
+			}
+			for(int i=0;i<returnval2;i++)
+			{	
+				printf("tokens for server2 are %s\n",token2[i]);		
+				if ((strlen(token2[i]))>2)
+				{	
+					token2[i]=strtok(token2[i],".");
+					ext2[i]=strtok(NULL,"\0");
+					printf("file is %s and extention %s\n",token2[i],ext2[i]);
+				}					
+			}
+			for(int i=0;i<returnval3;i++)
+			{	
+				printf("tokens for server3 are %s\n",token3[i]);		
+				if ((strlen(token3[i]))>2)
+				{	
+					token3[i]=strtok(token3[i],".");
+					ext3[i]=strtok(NULL,"\0");
+					printf("file is %s and extention %s\n",token3[i],ext3[i]);
+				}					
+			}
+			for(int i=0;i<returnval4;i++)
+			{	
+				printf("tokens for server4 are %s\n",token4[i]);		
+				if ((strlen(token4[i]))>2)
+				{	
+					token4[i]=strtok(token4[i],".");
+					ext4[i]=strtok(NULL,"\0");
+					printf("file is %s and extention %s\n",token4[i],ext4[i]);
+				}					
+			}
+			for(int i=0;i)
 			flag=false;	
 
 
@@ -497,7 +542,7 @@ int sendpart(char *buffer,int socket,int partno)
 
 }
 
-char tokenization(char *buffer[],char *content,int num)
+int tokenization(char *buffer[],char *content,int num)
 {
 	int i=0;
 	buffer[i]=strtok(content,delimiter);
@@ -507,5 +552,6 @@ char tokenization(char *buffer[],char *content,int num)
 		printf("tokens for server %d are is %s\n",num,buffer[i]);				
 		i++;
 	}
+	return i;
 			
 }
