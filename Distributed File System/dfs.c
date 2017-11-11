@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #define chunk 1024
 #define partsize 1024*1024*1024
 void ISRP(int argumet);
@@ -57,6 +58,8 @@ int main(int argc, char *argv[])
 	partname=malloc(20*sizeof(char));
 	int c,read_size;
 	struct sockaddr_in serv,client;
+	struct dirent *dir;
+	DIR *d;
 	if (argc !=3)
 	{
 		printf ("USAGE:  <port>\n");
@@ -101,15 +104,20 @@ int main(int argc, char *argv[])
 		    //Send the message back to client
 		    
 			printf("Read message is %s, %d\n",client_message,read_size);
-			method=strtok(client_message," ");
-			file=strtok(NULL,"\n");
-			strcpy(file1,file);
+			if(strncmp(client_message,"LIST",4)==0)
+				method=strtok(client_message,"\n");
+			else
+			{
+				method=strtok(client_message," ");
+				file=strtok(NULL,"\n");
+				strcpy(file1,file);
+			}
 			username=strtok(NULL," ");
 			password=strtok(NULL,"\0");
 			strcpy(user,fail);
 			parseconf();
 			printf("%s %s\n",user,passw);
-			printf("%s %s %s %s*\n",method,file,username,password);
+			//printf("%s %s %s %s*\n",method,file,username,password);
 			if (strcmp(passw,password)==0)
 			{
 				write(client_sock , pass ,sizeof(pass));
@@ -226,6 +234,17 @@ int main(int argc, char *argv[])
 					bytes=0;
 					bzero(path,sizeof(path));
 					bzero(client_message,sizeof(client_message));
+				}
+				else if(strcmp(method,"LIST")==0)
+				{
+					bzero(path,sizeof(path));
+					strcpy(path,".");
+					strcat(path,argv[1]);
+					strcat(path,"/");
+					strcat(path,user);
+					printf("Path uptill now is %s*\n",path);
+
+	
 				}
 			}
 			else

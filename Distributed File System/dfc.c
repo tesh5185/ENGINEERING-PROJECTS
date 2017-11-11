@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <openssl/md5.h>
+#include <stdbool.h>
 #define partsize 1024*1024*1024
 int senddata(int socketa,char* buffer,size_t length);
 int receivedata(int socketa,char* buffer,size_t length);
@@ -18,6 +19,7 @@ int authenticate(int socketa);
 struct sockaddr_in server1,server2,server3,server4;
 int sock1,sock2,sock3,sock4,temp,rem_bytes,fsize;
 uint16_t md5,mod;
+bool flag=false;
 //int sendrec(socket,)
 char *DFS1, *DFS2, *DFS3, *DFS4,*USER, *PASS;
 char reply[2000];
@@ -189,51 +191,61 @@ void main(int argc, char *argv[])
 
 	fgets(argument1,100,stdin);
 	strcpy(argument,argument1);
+	if(strcmp(argument1,"LIST\n")==0)
+		flag=true;	
+
 	strcat(argument,USER);
 	strcat(argument,delimiter);
 	strcat(argument,pass);
 	printf("total string is %s\n",argument);
-	command=strtok(argument1,delimiter);
-	file=strtok(NULL,"\n");
-	printf("Command is %s and file is %s\n",argument1,file);		
-	MD5_Init (&mdContext);
-	fp= fopen(file,"r");
-	fseek(fp, 0 , SEEK_END);
-	fsize=ftell(fp);
-	
-	fseek(fp, 0 , SEEK_SET);
-	printf("Total file size is %d\n", fsize);
-	
-	psize=fsize/4;
-	printf("part size is %d\n", psize);
-	nbytes=fread(part1,sizeof(char),psize,fp);
-	MD5_Update (&mdContext, part1, nbytes);
-	printf("Bytes read are %d\n",nbytes);
-	nbytes=fread(part2,sizeof(char),psize,fp);
-	printf("Bytes read are %d\n",nbytes);
-	MD5_Update (&mdContext, part2, nbytes);
-	nbytes=fread(part3,sizeof(char),psize,fp);
-	printf("Bytes read are %d\n",nbytes);
-	MD5_Update (&mdContext, part3, nbytes);
-	nbytes=fread(part4,sizeof(char),(fsize-3*psize),fp);
-	printf("Bytes read are %d\n",nbytes);
-	MD5_Update (&mdContext, part4, nbytes);
-	MD5_Final (len,&mdContext);
-	for(int i = 0; i < MD5_DIGEST_LENGTH; i++) 
-		printf("%02x",len[i]);
-	printf("\n");
-	md5=len[MD5_DIGEST_LENGTH-1];
-	mod=md5%4;
-	printf("the modulus is %d\n",mod);
-	
-	fclose(fp);
-	
+	if(!flag)
+	{
+		command=strtok(argument1,delimiter);
+		file=strtok(NULL,"\n");
+		printf("Command is %s and file is %s\n",argument1,file);
+	}
+	else
+		command=strtok(argument1,"\n");
 	connecttoservers();
 	//while(1)
 	//{
 		bytes_sent=0;
 		if(strcmp(command,"PUT")==0)
 		{
+			
+					
+			MD5_Init (&mdContext);
+			fp= fopen(file,"r");
+			fseek(fp, 0 , SEEK_END);
+			fsize=ftell(fp);
+	
+			fseek(fp, 0 , SEEK_SET);
+			printf("Total file size is %d\n", fsize);
+	
+			psize=fsize/4;
+			printf("part size is %d\n", psize);
+			nbytes=fread(part1,sizeof(char),psize,fp);
+			MD5_Update (&mdContext, part1, nbytes);
+			printf("Bytes read are %d\n",nbytes);
+			nbytes=fread(part2,sizeof(char),psize,fp);
+			printf("Bytes read are %d\n",nbytes);
+			MD5_Update (&mdContext, part2, nbytes);
+			nbytes=fread(part3,sizeof(char),psize,fp);
+			printf("Bytes read are %d\n",nbytes);
+			MD5_Update (&mdContext, part3, nbytes);
+			nbytes=fread(part4,sizeof(char),(fsize-3*psize),fp);
+			printf("Bytes read are %d\n",nbytes);
+			MD5_Update (&mdContext, part4, nbytes);
+			MD5_Final (len,&mdContext);
+			for(int i = 0; i < MD5_DIGEST_LENGTH; i++) 
+				printf("%02x",len[i]);
+			printf("\n");
+			md5=len[MD5_DIGEST_LENGTH-1];
+			mod=md5%4;
+			printf("the modulus is %d\n",mod);
+	
+			fclose(fp);
+	
 			returnval1=authenticate(sock1);
 			returnval2=authenticate(sock2);
 			returnval3=authenticate(sock3);
@@ -342,10 +354,23 @@ void main(int argc, char *argv[])
 				}
 				
 			}
-			
-			
+				
 		}
-	
+		else if (strcmp(command,"LIST")==0)
+		{
+			//bzero(command,sizeof(command));
+			//command=strtok(argument1,"\n");
+			printf("Command is %s\n",command);
+			returnval1=authenticate(sock1);
+			returnval2=authenticate(sock2);
+			returnval3=authenticate(sock3);
+			returnval4=authenticate(sock4);
+			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			flag=false;	
+
+
+
+		}
 	/*
 	if (part1!=NULL)
 		free(part1);
