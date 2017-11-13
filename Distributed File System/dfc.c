@@ -12,7 +12,7 @@ int senddata(int socketa,char* buffer,size_t length);
 int receivedata(int socketa,char* buffer,size_t length);
 int sendpart(char *buffer,int socket,int partno);
 int tokenization(char *buffer[],char *content,int num);
-char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf;
+char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf, *sometoken,*sometoken1;
 char *delimiter=" ";
 const int chunk=1024;
 void connecttoservers(void);
@@ -30,10 +30,12 @@ char sub2[]=".2";
 char sub3[]=".3";
 char sub4[]=".4";
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
-char *token1[50],*token2[50],*token3[50],*token4[50];
-char *ext1[25], *ext2[25],*ext3[25], *ext4[25];
-char *top[50]
-int j;
+char *token1[50],*token2[50],*token3[50],*token4[50],*token11[50];
+char *ext[25];
+char bss[100][50],ccc[100][50];
+char *top[50];
+//int j;
+char *num_ptr;
 void connecttoservers(void)
 {
 	
@@ -123,9 +125,18 @@ void main(int argc, char *argv[])
 	DFS3=malloc(25*sizeof(char));
 	DFS4=malloc(25*sizeof(char));
 	USER=malloc(25*sizeof(char));
+	sometoken1=malloc(25*sizeof(char));
+	//token11[50]=malloc(25*sizeof(char));
+	//token1[]=(char *)malloc(25*sizeof(char));
+	/*for(int i=0;i<50;i++)
+	{
+		token11[i]=&bcc[50][i];
+		token1[i]=&ccc[50][i];
+	}*/
+	
 	FILE *fp,*ft, *fcon;
 	int nbytes;
-	
+	num_ptr=malloc(20*sizeof(char));
 
 	fcon=fopen(argv[1],"r");
 	
@@ -387,19 +398,183 @@ void main(int argc, char *argv[])
 				printf("tokens for DFS1 are is %s\n",token1[i]);				
 				i++;
 			}*/
+			//for(int i=0;i<100;i++)
+			//{
+			sometoken=bss[0];
+			int i=0;
+			sometoken1=strtok(content1,delimiter);
+			strcpy(sometoken,sometoken1);
+			printf("First value is %s\n",bss[0]);
+			i++;
+			while(sometoken1!=NULL)
+			{
+				sometoken=bss[i];
+				
+				sometoken1=strtok(NULL,delimiter);
+				printf("ANDAR\n");
+				if(sometoken1!=NULL)
+				{	strcpy(sometoken,sometoken1);
+					printf("Next value is %s\n",bss[i]);
+					i++;
+				}
+			}
+			printf("BAHAR\n");
+			sometoken=bss[i];
+			sometoken1=strtok(content2,delimiter);
+			strcpy(sometoken,sometoken1);
+			i++;
+			while(sometoken1!=NULL)
+			{
+				sometoken=bss[i];
+				
+				sometoken1=strtok(NULL,delimiter);
+				printf("ANDAR\n");
+				if(sometoken1!=NULL)
+				{	strcpy(sometoken,sometoken1);
+					printf("Next value is %s\n",bss[i]);
+					i++;
+				}
+			}
+			sometoken=bss[i];
+			sometoken1=strtok(content3,delimiter);
+			strcpy(sometoken,sometoken1);
+			i++;
+			while(sometoken1!=NULL)
+			{
+				sometoken=bss[i];
+				
+				sometoken1=strtok(NULL,delimiter);
+				printf("ANDAR\n");
+				if(sometoken1!=NULL)
+				{	strcpy(sometoken,sometoken1);
+					printf("Next value is %s\n",bss[i]);
+					i++;
+				}
+			}
+			sometoken=bss[i];
+			sometoken1=strtok(content4,delimiter);
+			strcpy(sometoken,sometoken1);
+			i++;
+			while(sometoken1!=NULL)
+			{
+				sometoken=bss[i];
+				
+				sometoken1=strtok(NULL,delimiter);
+				printf("ANDAR\n");
+				if(sometoken1!=NULL)
+				{	strcpy(sometoken,sometoken1);
+					printf("Next value is %s\n",bss[i]);
+					i++;
+				}
+			}
+			int l=0;
+			for(int j=0;j<i;j++)
+			{
+				
+				flag=false;
+				//sometoken1=ccc[j];
+				for(int k=0;k<l;k++)
+				{
+					//printf("VALUES of j and k are %d and %d %s\n",j,k,ccc[k]);
+					if(strcmp(ccc[k],bss[j])==0)
+					{
+						flag=true;
+						//puts("flag is true");
+					}
+				}
+				if(flag==false)
+				{
+					strcpy(ccc[l],bss[j]);
+					printf("Content is %s\n",ccc[l]);
+					l++;
+				}
+			}
+			int count=0;
+			for(int j=0;j<l;j++)
+			{
+				if(strlen(ccc[j])>2)
+				{
+					sometoken1=strtok(ccc[j],".");
+					sometoken=strtok(ccc[j],".");
+					strcpy(ccc[j],sometoken);
+					printf("the string is %s\n",ccc[j]);
+					
+				}
+				
+			}
+			puts("THE LIST IS");
+			for(int j=0;j<l;j++)
+			{
+
+				if(strlen(ccc[j])>2)
+				{
+					for(int i=0;i<l;i++)
+					{
+						if(strcmp(ccc[i],ccc[j])==0)
+						{	count++;
+							if(i!=j)
+								strcpy(ccc[i],"\0");
+						}
+					}
+					//for(int i=0;i<j;i++)
+					//{	
+					//if(strcmp(ccc[j],ccc[i])!=0)
+					//{
+					if(strcmp(ccc[j],"\0")!=0)
+					{
+					if(count==4)
+						printf("%s\n",ccc[j]);
+					else
+						printf("%s[INCOMPLETE]\n",ccc[j]);
+					}
+					count=0;
+				}
+			}
+
+
+
+			//printf("Last value is %s\n",bss[i-1]);
+			/*
 			returnval1=tokenization(token1,content1,1);
 			returnval2=tokenization(token2,content2,2);
 			returnval3=tokenization(token3,content3,3);
 			returnval4=tokenization(token4,content4,4);
 			j=0;
 			for(int i=0;i<returnval1;i++)
+			{
+				strcpy(token11[i],token1[i]);
+				printf("After copying %s\n",token11[i]);
+			}
+			for(int i=0;i<returnval1;i++)
 			{	
+				puts("here");
+				//strcpy(token11[i],token1[i]);
 				printf("tokens for server1 are %s\n",token1[i]);		
 				if ((strlen(token1[i]))>2)
 				{	
-					token1[i]=strtok(token1[i],".");
-					ext1[i]=strtok(NULL,"\0");
-					printf("file is %s and extention %s\n",token1[i],ext1[i]);
+					if(j==0)
+					{
+							top[j]=strtok(token1[i],".");
+							ext[j]=strtok(NULL,"\0");
+							printf("file is %s and extention %s and j is %d\n",top[j],ext[j],j);
+							j++;
+					}
+					for(int k=0;k<=j-1;k++)					
+					{
+						if(strcmp(token11[k],token11[j])==0)
+						{
+							printf("break\n");
+							break;
+						}
+						else
+						{												
+							top[j]=strtok(token1[i],".");
+							ext[j]=strtok(NULL,"\0");
+							printf("file is %s and extention %s and j is %d\n",top[j],ext[j],j);
+							j++;
+						}
+					}					
+					
 				}					
 			}
 			for(int i=0;i<returnval2;i++)
@@ -407,9 +582,10 @@ void main(int argc, char *argv[])
 				printf("tokens for server2 are %s\n",token2[i]);		
 				if ((strlen(token2[i]))>2)
 				{	
-					token2[i]=strtok(token2[i],".");
-					ext2[i]=strtok(NULL,"\0");
-					printf("file is %s and extention %s\n",token2[i],ext2[i]);
+					top[j]=strtok(token2[i],".");
+					ext[j]=strtok(NULL,"\0");
+					printf("file is %s and extention %s and j is %d\n",top[j],ext[j],j);
+					j++;
 				}					
 			}
 			for(int i=0;i<returnval3;i++)
@@ -417,9 +593,10 @@ void main(int argc, char *argv[])
 				printf("tokens for server3 are %s\n",token3[i]);		
 				if ((strlen(token3[i]))>2)
 				{	
-					token3[i]=strtok(token3[i],".");
-					ext3[i]=strtok(NULL,"\0");
-					printf("file is %s and extention %s\n",token3[i],ext3[i]);
+					top[j]=strtok(token3[i],".");
+					ext[j]=strtok(NULL,"\0");
+					printf("file is %s and extention %s and j is %d \n",top[j],ext[j],j);
+					j++;
 				}					
 			}
 			for(int i=0;i<returnval4;i++)
@@ -427,15 +604,43 @@ void main(int argc, char *argv[])
 				printf("tokens for server4 are %s\n",token4[i]);		
 				if ((strlen(token4[i]))>2)
 				{	
-					token4[i]=strtok(token4[i],".");
-					ext4[i]=strtok(NULL,"\0");
-					printf("file is %s and extention %s\n",token4[i],ext4[i]);
-				}					
+					top[j]=strtok(token4[i],".");
+					ext[j]=strtok(NULL,"\0");
+					printf("file is %s and extention %s and j is %d\n",top[j],ext[j],j);
+					j++;
+				}
 			}
-			for(int i=0;i)
+			
+			memset(num_ptr,1,sizeof(num_ptr));
+			
+			for(int i=0;i<j;i++)
+			{	
+				for (int k=0;k<j;k++)	
+				{
+				if(strcmp(top[i],top[k])==0)
+				{	
+					if(strcmp(ext[i],ext[k])!=0)
+					{		
+						puts("Incrementing");						
+						*(num_ptr+i)+=1;
+						printf("%s* %s*\n",ext[i],ext[k]);
+					}	
+				}}
+				
+			}
+			puts("After loop");
+			for(int i=0;i<j;i++)
+			{	
+				if (*(num_ptr+i)>=4)
+					printf("%s\n",top[i]);
+				else
+					printf("%s[Incomplete]\n",top[i]);
+			printf("value in pointer = %d\n",*(num_ptr+i));
+
+			}
 			flag=false;	
 
-
+			*/
 
 		}
 	/*
@@ -468,6 +673,9 @@ void main(int argc, char *argv[])
 
 	if (USER!=NULL)
 		free(USER);
+		
+	//free(token1);
+	//free(token11);
 }
 int senddata(int socketa,char* buffer,size_t length)
 {
@@ -530,7 +738,7 @@ int sendpart(char *buffer,int socket,int partno)
 	receivedata(socket,reply,sizeof(reply));
 	if(partno==1)
 		senddata(socket,".1",sizeof(".1"));
-	else if(partno==2)
+	else if(partno==2) 
 		senddata(socket,".2",sizeof(".2"));
 	else if(partno==3)
 		senddata(socket,".3",sizeof(".3"));
@@ -549,7 +757,7 @@ int tokenization(char *buffer[],char *content,int num)
 	while(buffer[i]!=NULL)
 	{
 		buffer[i+1]=strtok(NULL,delimiter);
-		printf("tokens for server %d are is %s\n",num,buffer[i]);				
+		printf("tokens for server %d is %s\n",num,buffer[i]);				
 		i++;
 	}
 	return i;
