@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #define chunk 1024
-#define partsize 1024*1024*1024
+#define partsize 5000000
 void ISRP(int argumet);
 int sock,client_sock;
 char pass[]="pass";
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 			strcpy(user,fail);
 			parseconf();
 			printf("%s %s\n",user,passw);
-			//printf("%s %s %s %s*\n",method,file,username,password);
+			printf("%s %s %s %s*\n",method,file,username,password);
 			if (strcmp(passw,password)==0)
 			{
 				write(client_sock , pass ,sizeof(pass));
@@ -131,23 +131,23 @@ int main(int argc, char *argv[])
 					count=0;	
 					while(bytes_read >= chunk)
 					{
-								
+						bzero(client_message,sizeof(client_message));		
 						bytes_read= recv(client_sock , client_message , chunk , 0);
-						printf("then here\n");						
+						//printf("then here\n");						
 						strcpy(tempbuf,client_message);
 						tempbuf+=chunk;
 						bytes+=bytes_read;
-						printf("bytes_read=%d\n",bytes_read);
+						//printf("bytes_read=%d\n",bytes_read);
 						count++;
 					}
 			
 					tempbuf-=count*chunk;
-					printf("Message received is \n%s\n",tempbuf);				
+					//printf("Message received is \n%s\n",tempbuf);				
 					printf("Total bytes read are %d\n",bytes);
 					write(client_sock , pass ,sizeof(pass));
 					bzero(client_message,sizeof(client_message));
 					bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
-					printf("message is %s\n",client_message);
+					printf("message is \n%s\n",client_message);
 			
 			
 					bzero(path,sizeof(path));
@@ -189,29 +189,30 @@ int main(int argc, char *argv[])
 					}
 					else
 						perror("File open failed\n");
+
 					bytes=0;
 					bytes_read=chunk;
 					//bzero(path,sizeof(path));
 					count=0;
 					while(bytes_read >= chunk)
 					{
-									
+						bzero(client_message,sizeof(client_message));			
 						bytes_read= recv(client_sock , client_message , chunk , 0);
-						printf("then here\n");						
+						//printf("then here\n");						
 						strcpy(tempbuf2,client_message);
 						tempbuf2+=chunk;
 						bytes+=bytes_read;
-						printf("bytes_read=%d\n",bytes_read);
+						//printf("bytes_read=%d\n",bytes_read);
 						//printf("Message received is \n%s\n",client_message);
 						count++;
 					}
 					tempbuf2-=count*chunk;
-					printf("Message received is \n%s\n",tempbuf2);
+					//printf("Message received is \n%s\n",tempbuf2);
 					printf("Total bytes read are %d\n",bytes);
 					write(client_sock , pass ,sizeof(pass));
-			
+					bzero(client_message,sizeof(client_message));
 					bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
-					printf("message is %s\n",client_message);
+					//printf("message is %s\n",client_message);
 			
 			
 					bzero(path,sizeof(path));
