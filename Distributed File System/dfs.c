@@ -25,11 +25,25 @@ char fail[]="fail";
 void parseconf(void);
 int bytes_read,bytes=0;
 char path[100],count;
-char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname,*sub,*sub1;
+char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname,*sub,*sub1,*token,*token1;
 char con[100];
 FILE *fpp;
+char delimiter[]=" ";
+char *strrev(char *str)
+{
+      char *p1, *p2;
 
-char content[500];
+      if (! str || ! *str)
+            return str;
+      for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2)
+      {
+            *p1 ^= *p2;
+            *p2 ^= *p1;
+            *p1 ^= *p2;
+      }
+      return str;
+}
+char content[500],more_cont[500];
 void ISRP(int argumet)
 {
 	close(client_sock);
@@ -52,6 +66,7 @@ void parseconf(void)
 	}
 	fclose(fp);	
 }
+
 int main(int argc, char *argv[])
 {
 	signal(SIGINT,ISRP);
@@ -297,6 +312,102 @@ int main(int argc, char *argv[])
 						printf("Content is %s\n",content);
 						write(client_sock , content ,sizeof(content));
 							
+					}
+					else if(strcmp(method,"GET")==0)
+					{
+						bzero(path,sizeof(path));
+						bzero(more_cont,sizeof(more_cont));
+						bzero(content,sizeof(content));
+						strcpy(path,".");
+						strcat(path,argv[1]);
+						strcat(path,"/");
+						strcat(path,user);
+						strcat(path,"/");
+						strcat(path,sub);
+						printf("Path is %s\n",path);
+						d = opendir(path);
+						/*while ((dir = readdir(d)) != NULL)
+						{	
+							strcat(content,dir->d_name);
+							strcat(content," ");
+						
+						}*/
+						while ((dir = readdir(d)) != NULL)
+						{	
+							if(strlen(dir->d_name)>2)
+							{
+								strrev(dir->d_name);
+								//token=strtok(dir->d_name,".");
+								token=dir->d_name+strlen(dir->d_name)-1;
+								memcpy(token,"\0",1);
+								strrev(dir->d_name);
+								//token+strlen(dir->d_name)-1=;
+								strcat(more_cont,dir->d_name);
+								strcat(more_cont," ");
+							}
+						
+						}
+						printf("More Content is %s\n",more_cont);
+						token=strtok(more_cont,delimiter);
+						printf("Token is %s\n",token);
+						if(strncmp(token,file1,strlen(file1))==0)
+						{
+							printf("aajao\n");
+							strcat(content,token);
+							strcat(content,delimiter);
+						}
+						while(token!=NULL)
+						{
+							token=strtok(NULL,delimiter);
+							printf("Token is %s\n",token);
+							if(token!=NULL)
+							{
+								if(strncmp(token,file1,strlen(file1))==0)
+								{
+									strcat(content,token);
+									strcat(content,delimiter);
+								}
+							}
+	
+
+						}
+						printf("Content is %s\n",content);
+						bzero(more_cont,sizeof(more_cont));
+						token=strtok(content,delimiter);
+						token1=strtok(NULL,"\0");
+						strrev(token);
+						token=strtok(token,".");
+						printf("Token is %s\n",token);
+						strcat(more_cont,token);
+						//strcat(more_cont,delimiter);
+						strrev(token1);
+						//strrev(token);
+						token1=strtok(token1,".");
+						printf("Token is %s\n",token1);
+						strcat(more_cont,token1);
+						/*while(token!=NULL)
+						{
+							strcat(more_cont,delimiter);
+							strrev(token);
+							token=strtok(NULL,delimiter);
+							if(token!=NULL)
+							{
+								
+								token=strtok(token,".");
+								printf("Token is %s\n",token);
+								strcat(more_cont,token);
+								strrev(token);
+							}
+						
+						}*/
+						printf("More Content is %s\n",more_cont);
+						
+						write(client_sock , more_cont ,sizeof(more_cont));
+						
+
+
+
+
 					}
 				}
 				else

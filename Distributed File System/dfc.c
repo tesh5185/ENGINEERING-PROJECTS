@@ -542,6 +542,24 @@ void main(int argc, char *argv[])
 					count=0;
 				}
 			}
+			
+		}
+		else if (strcmp(command,"GET")==0)
+		{
+			returnval1=authenticate(sock1);
+			returnval2=authenticate(sock2);
+			returnval3=authenticate(sock3);
+			returnval4=authenticate(sock4);
+			bzero(content1,sizeof(content1));
+			bzero(content2,sizeof(content2));
+			bzero(content3,sizeof(content3));
+			bzero(content4,sizeof(content4));
+			receivedata(sock1,content1,sizeof(content1));
+			receivedata(sock2,content2,sizeof(content2));
+			receivedata(sock3,content3,sizeof(content3));
+			receivedata(sock4,content4,sizeof(content4));
+			
+			
 		}
 	if (con!=NULL)
 		free(con);
