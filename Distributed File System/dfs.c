@@ -25,9 +25,10 @@ char fail[]="fail";
 void parseconf(void);
 int bytes_read,bytes=0;
 char path[100],count;
-char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname;
+char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname,*sub,*sub1;
 char con[100];
 FILE *fpp;
+
 char content[500];
 void ISRP(int argumet)
 {
@@ -75,6 +76,8 @@ int main(int argc, char *argv[])
 	serv.sin_port = htons(atoi(argv[2]));        //htons() sets the port # to network byte order
 	serv.sin_addr.s_addr = INADDR_ANY;           //supplies the IP address of the local machine
 	file1=malloc(20*sizeof(char));
+	sub=malloc(20*sizeof(char));
+
 	if ((sock = socket(AF_INET,SOCK_STREAM,0)) < 0)
 	{
 	    printf("unable to create socket, sock : %d\n", sock);
@@ -90,182 +93,224 @@ int main(int argc, char *argv[])
     printf("bind done on port %d\n",atoi(argv[2]));
 	listen(sock , 10);
 	c = sizeof(struct sockaddr_in);
-	client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
+	/*client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
     if (client_sock < 0)
     {
         perror("accept failed");
         return 1;
     }
-    puts("Connection accepted");
+    puts("Connection accepted");*/
 	char client_message[chunk];
 	
 	
-	//while(1)
+//	while(1)
 	{
-		 while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
+		client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
+	    if (client_sock < 0)
+	    {
+	        perror("accept failed");
+	        return 1;
+	    }
+	    puts("Connection accepted");
+	
+	//	pid_t child = fork();
+		//if (child == 0)
 		{
-		    //Send the message back to client
-		    
-			printf("Read message is %s, %d\n",client_message,read_size);
-			if(strncmp(client_message,"LIST",4)==0)
-				method=strtok(client_message,"\n");
-			else
+		 	while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
 			{
-				method=strtok(client_message," ");
-				file=strtok(NULL,"\n");
-				strcpy(file1,file);
-			}
-			username=strtok(NULL," ");
-			password=strtok(NULL,"\0");
-			strcpy(user,fail);
-			parseconf();
-			printf("%s %s\n",user,passw);
-			printf("%s %s %s %s*\n",method,file,username,password);
-			if (strcmp(passw,password)==0)
-			{
-				write(client_sock , pass ,sizeof(pass));
-				if(strcmp(method,"PUT")==0)
+				//Send the message back to client
+				/*client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
+				if (client_sock < 0)
 				{
-					printf("First here\n");
-					bytes_read=chunk;	
-					count=0;	
-					while(bytes_read >= chunk)
-					{
-						bzero(client_message,sizeof(client_message));		
-						bytes_read= recv(client_sock , client_message , chunk , 0);
-						//printf("then here\n");						
-						strcpy(tempbuf,client_message);
-						tempbuf+=chunk;
-						bytes+=bytes_read;
-						//printf("bytes_read=%d\n",bytes_read);
-						count++;
-					}
-			
-					tempbuf-=count*chunk;
-					//printf("Message received is \n%s\n",tempbuf);				
-					printf("Total bytes read are %d\n",bytes);
+				    perror("accept failed");
+   		 	   		 return 1;
+   	 			}
+	   		 	puts("Connection accepted");*/
+				printf("Read message is %s, %d\n",client_message,read_size);
+				if(strncmp(client_message,"LIST",4)==0)
+				{
+					method=strtok(client_message," ");
+					sub1=strtok(NULL,"\n");
+					strcpy(sub,sub1);
+				}	
+				else
+				{
+					method=strtok(client_message," ");
+					file=strtok(NULL," ");
+					sub1=strtok(NULL,"\n");
+					strcpy(file1,file);
+					strcpy(sub,sub1);
+				}
+				username=strtok(NULL," ");
+				password=strtok(NULL,"\0");
+				strcpy(user,fail);
+				parseconf();
+				printf("%s %s\n",user,passw);
+				printf("%s %s %s %s %s*\n",method,file,username,password,sub1);
+				if (strcmp(passw,password)==0)
+				{
 					write(client_sock , pass ,sizeof(pass));
-					bzero(client_message,sizeof(client_message));
-					bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
-					printf("message is \n%s\n",client_message);
+					if(strcmp(method,"PUT")==0)
+					{
+						printf("First here\n");
+						bytes_read=chunk;	
+						count=0;	
+						while(bytes_read >= chunk)
+						{
+							bzero(client_message,sizeof(client_message));		
+							bytes_read= recv(client_sock , client_message , chunk , 0);
+							//printf("then here\n");						
+							strcpy(tempbuf,client_message);
+							tempbuf+=chunk;
+							bytes+=bytes_read;
+							//printf("bytes_read=%d\n",bytes_read);
+							count++;
+						}
+			
+						tempbuf-=count*chunk;
+						//printf("Message received is \n%s\n",tempbuf);				
+						printf("Total bytes read are %d\n",bytes);
+						write(client_sock , pass ,sizeof(pass));
+						bzero(client_message,sizeof(client_message));
+						bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
+						printf("message is \n%s\n",client_message);
 			
 			
-					bzero(path,sizeof(path));
-					strcpy(path,".");
-					strcat(path,argv[1]);
-					strcat(path,"/");
-					strcat(path,user);
-					//strcat(path,"/.");
-					printf("file is %s\n",file1);
-					//strcat(path,file1);
-					//strcat(file1,client_message);
+						bzero(path,sizeof(path));
+						strcpy(path,".");
+						strcat(path,argv[1]);
+						strcat(path,"/");
+						strcat(path,user);
+						//strcat(path,"/.");
+						printf("file is %s\n",file1);
+						//strcat(path,file1);
+						//strcat(file1,client_message);
 			
-					strcpy(partname,".");
-					strcat(partname,file1);
-					strcat(partname,client_message);
-					printf("Total path is %s and filename is %s\n",path,partname);
-					struct stat st = {0};
+						strcpy(partname,".");
+						strcat(partname,file1);
+						strcat(partname,client_message);
+						printf("Total path is %s and filename is %s\n",path,partname);
+						struct stat st = {0};
 
-					if (stat(path, &st) == -1) 
-					{		
-						//mode_t mask=umask(0);	
-						//umask(mask);
-						//printf("Mask %i\n",mask);				
-						if(mkdir(path, 0700)==-1)
-							perror("File not made");
+						if (stat(path, &st) == -1) 
+						{		
+											
+							if(mkdir(path, 0700)==-1)
+								perror("File not made");
+							else
+								puts("mkdir successful");
+							//umask(mask);
+
+						}
+						strcat(path,"/");
+						strcat(path,sub);
+						printf("Path here should be %s\n",path);
+						struct stat st1={0};
+						if (stat(path, &st1) == -1) 
+						{					
+							if(mkdir(path, 0700)==-1)
+								perror("File not made");
+							else
+								puts("mkdir successful");
+
+						}
+						strcat(path,"/");
+						strcat(path,partname);
+						printf("Total path is %s\n",path);
+						fpp=fopen(path,"w");
+						if(fpp)
+						{
+							fwrite(tempbuf,bytes,sizeof(char),fpp);
+							fclose(fpp);
+						}
 						else
-							puts("mkdir successful");
-						//umask(mask);
+							perror("File open failed\n");
 
-					}
-					strcat(path,"/");
-					strcat(path,partname);
-					printf("Total path is %s\n",path);
-					fpp=fopen(path,"w");
-					if(fpp)
-					{
-						fwrite(tempbuf,bytes,sizeof(char),fpp);
-						fclose(fpp);
-					}
-					else
-						perror("File open failed\n");
-
-					bytes=0;
-					bytes_read=chunk;
-					//bzero(path,sizeof(path));
-					count=0;
-					while(bytes_read >= chunk)
-					{
-						bzero(client_message,sizeof(client_message));			
-						bytes_read= recv(client_sock , client_message , chunk , 0);
-						//printf("then here\n");						
-						strcpy(tempbuf2,client_message);
-						tempbuf2+=chunk;
-						bytes+=bytes_read;
-						//printf("bytes_read=%d\n",bytes_read);
-						//printf("Message received is \n%s\n",client_message);
-						count++;
-					}
-					tempbuf2-=count*chunk;
-					//printf("Message received is \n%s\n",tempbuf2);
-					printf("Total bytes read are %d\n",bytes);
-					write(client_sock , pass ,sizeof(pass));
-					bzero(client_message,sizeof(client_message));
-					bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
-					//printf("message is %s\n",client_message);
+						bytes=0;
+						bytes_read=chunk;
+						//bzero(path,sizeof(path));
+						count=0;
+						while(bytes_read >= chunk)
+						{
+							bzero(client_message,sizeof(client_message));			
+							bytes_read= recv(client_sock , client_message , chunk , 0);
+							//printf("then here\n");						
+							strcpy(tempbuf2,client_message);
+							tempbuf2+=chunk;
+							bytes+=bytes_read;
+							//printf("bytes_read=%d\n",bytes_read);
+							//printf("Message received is \n%s\n",client_message);
+							count++;
+						}
+						tempbuf2-=count*chunk;
+						//printf("Message received is \n%s\n",tempbuf2);
+						printf("Total bytes read are %d\n",bytes);
+						write(client_sock , pass ,sizeof(pass));
+						bzero(client_message,sizeof(client_message));
+						bytes_read=recv(client_sock,client_message,sizeof(client_message),0);
+						//printf("message is %s\n",client_message);
 			
 			
-					bzero(path,sizeof(path));
-					strcpy(path,".");
-					strcat(path,argv[1]);
-					strcat(path,"/");
-					strcat(path,user);
-					strcat(path,"/");
-					strcat(path,".");
-					printf("%s\n",file1);
-					strcat(path,file1);
-					strcat(path,client_message);
-					printf("Total path is %s\n",path);
-					fpp=fopen(path,"w");
-					if(fpp)
-					{	
-						fwrite(tempbuf2,bytes,sizeof(char),fpp);
-						fclose(fpp);
-					}
-					else
-						perror("File open failed\n");
+						bzero(path,sizeof(path));
+						strcpy(path,".");
+						strcat(path,argv[1]);
+						strcat(path,"/");
+						strcat(path,user);
+						strcat(path,"/");
+						strcat(path,sub);
+						strcat(path,"/");
+						strcat(path,".");
+						printf("%s\n",file1);
+						strcat(path,file1);
+						strcat(path,client_message);
+						printf("Total path is %s\n",path);
+						fpp=fopen(path,"w");
+						if(fpp)
+						{	
+							fwrite(tempbuf2,bytes,sizeof(char),fpp);
+							fclose(fpp);
+						}
+						else
+							perror("File open failed\n");
 
-					bytes=0;
-					bzero(path,sizeof(path));
-					bzero(client_message,sizeof(client_message));
-				}
-				else if(strcmp(method,"LIST")==0)
-				{
-					bzero(path,sizeof(path));
-					strcpy(path,".");
-					strcat(path,argv[1]);
-					strcat(path,"/");
-					strcat(path,user);
-					printf("Path is %s\n",path);
-					d = opendir(path);
-					while ((dir = readdir(d)) != NULL)
-					{	
-						strcat(content,dir->d_name);
-						strcat(content," ");
+						bytes=0;
+						bzero(path,sizeof(path));
+						bzero(client_message,sizeof(client_message));
+					}
+					else if(strcmp(method,"LIST")==0)
+					{
+						bzero(path,sizeof(path));
+						strcpy(path,".");
+						strcat(path,argv[1]);
+						strcat(path,"/");
+						strcat(path,user);
+						strcat(path,"/");
+						strcat(path,sub);
+						printf("Path is %s\n",path);
+						d = opendir(path);
+						while ((dir = readdir(d)) != NULL)
+						{	
+							strcat(content,dir->d_name);
+							strcat(content," ");
 						
-					}
-					printf("Content is %s\n",content);
-					write(client_sock , content ,sizeof(content));
+						}
+						printf("Content is %s\n",content);
+						write(client_sock , content ,sizeof(content));
 							
+					}
 				}
-			}
-			else
-				write(client_sock , fail , sizeof(fail));
+				else
+					write(client_sock , fail , sizeof(fail));
 			
-			bzero( client_message , sizeof(client_message));
-			//printf("Total bytes read are %d\n",bytes);
+				bzero( client_message , sizeof(client_message));
+				//close(sock);
+				//printf("Total bytes read are %d\n",bytes);
+			}close(sock);
 		}
-		 
+		//else
+		{
+			//close(sock);
+		}
 		/*if(read_size == 0)
 		{
 		    puts("Client disconnected");

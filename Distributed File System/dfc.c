@@ -8,14 +8,14 @@
 #include <openssl/md5.h>
 #include <stdbool.h>
 #define partsize 5000000
-int senddata(int socket,char* buffer,size_t length,struct sockaddr_in server);
+int senddata(int socketa,char* buffer,size_t length);
 int receivedata(int socketa,char* buffer,size_t length);
-int sendpart(char *buffer,int socket,int partno,struct sockaddr_in server);
-char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf, *sometoken,*sometoken1;
+int sendpart(char *buffer,int socket,int partno);
+char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf, *sometoken,*sometoken1,*sub;
 char *delimiter=" ";
 const int chunk=1024;
 void connecttoservers(void);
-int authenticate(int socketa,struct sockaddr_in server);
+int authenticate(int socketa);
 struct sockaddr_in server1,server2,server3,server4;
 int sock1,sock2,sock3,sock4,temp,rem_bytes,fsize;
 uint16_t md5,mod;
@@ -30,10 +30,59 @@ char sub3[]=".3";
 char sub4[]=".4";
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
 char bss[100][50],ccc[100][50];
+
+char *strrev(char *str)
+{
+      char *p1, *p2;
+
+      if (! str || ! *str)
+            return str;
+      for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2)
+      {
+            *p1 ^= *p2;
+            *p2 ^= *p1;
+            *p1 ^= *p2;
+      }
+      return str;
+}
 void connecttoservers(void)
 {
 	
-		
+	server1.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server1.sin_family = AF_INET;
+	server1.sin_port = htons(atoi(dfs1));
+	server2.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server2.sin_family = AF_INET;
+	server2.sin_port = htons(atoi(dfs2));
+	
+	server3.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server3.sin_family = AF_INET;
+	server3.sin_port = htons(atoi(dfs3));
+	server4.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server4.sin_family = AF_INET;
+	server4.sin_port = htons(atoi(dfs4));
+	
+	if ((sock1 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock1);
+	}
+	printf("Socket1 successfully created\n");
+	if ((sock2 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock2);
+	}
+	printf("Socket2 successfully created\n");
+	if ((sock3 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock3);
+	}
+	printf("Socket3 successfully created\n");
+	if ((sock4 = socket(AF_INET,SOCK_STREAM,0)) < 0)
+	{
+	    printf("unable to create socket, sock : %d\n", sock4);
+	}
+	printf("Socket4 successfully created\n");
+	
 	if (connect(sock1 , (struct sockaddr *)&server1 , sizeof(server1)) < 0)
 	{
 		perror("connect failed. Error");
@@ -58,16 +107,6 @@ void connecttoservers(void)
 	}
 	else
 		puts("Connected to server 4");
-
-}
-int connecttoserver(int socket,struct sockaddr_in server)
-{
-	if (connect(socket,(struct sockaddr *)&server,sizeof(server1))<0)
-	{
-		perror("connect failed. Error");
-	}
-	else
-		printf("Connected to %d\n",socket);
 
 }
 void main(int argc, char *argv[])
@@ -178,50 +217,17 @@ void main(int argc, char *argv[])
 	if(!flag)
 	{
 		command=strtok(argument1,delimiter);
-		file=strtok(NULL,"\n");
-		printf("Command is %s and file is %s\n",argument1,file);
+		file=strtok(NULL," ");
+		sub=strtok(NULL,"\n");
+		printf("Command is %s and file is %s and sub is %s\n",argument1,file,sub);
 	}
 	else
-		command=strtok(argument1,"\n");
-	server1.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server1.sin_family = AF_INET;
-	server1.sin_port = htons(atoi(dfs1));
-	server2.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server2.sin_family = AF_INET;
-	server2.sin_port = htons(atoi(dfs2));
-	
-	server3.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server3.sin_family = AF_INET;
-	server3.sin_port = htons(atoi(dfs3));
-	server4.sin_addr.s_addr = inet_addr("127.0.0.1");
-    server4.sin_family = AF_INET;
-	server4.sin_port = htons(atoi(dfs4));
-	
-	if ((sock1 = socket(AF_INET,SOCK_STREAM,0)) < 0)
 	{
-	    printf("unable to create socket, sock : %d\n", sock1);
+		command=strtok(argument1," ");
+		sub=strtok(NULL,"\n");
+		printf("Command is %s and subfolder is %s\n",command,sub);
 	}
-	printf("Socket1 successfully created\n");
-	if ((sock2 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock2);
-	}
-	printf("Socket2 successfully created\n");
-	if ((sock3 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock3);
-	}
-	printf("Socket3 successfully created\n");
-	if ((sock4 = socket(AF_INET,SOCK_STREAM,0)) < 0)
-	{
-	    printf("unable to create socket, sock : %d\n", sock4);
-	}
-	printf("Socket4 successfully created\n");
-	connecttoserver(sock1,server1);
-	connecttoserver(sock2,server2);
-	connecttoserver(sock3,server3);
-	connecttoserver(sock4,server4);
-
+	connecttoservers();
 	//while(1)
 	//{
 		bytes_sent=0;
@@ -261,38 +267,38 @@ void main(int argc, char *argv[])
 	
 			fclose(fp);
 	
-			returnval1=authenticate(sock1,server1);
-			returnval2=authenticate(sock2,server2);
-			returnval3=authenticate(sock3,server3);
-			returnval4=authenticate(sock4,server4);
+			returnval1=authenticate(sock1);
+			returnval2=authenticate(sock2);
+			returnval3=authenticate(sock3);
+			returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
 			if (mod==0)
 			{
 				if(returnval1==1)
 				{
-					sendpart(part1,sock1,1,server1);
+					sendpart(part1,sock1,1);
 					//senddata(sock1,".1",sizeof(".1"));
-					sendpart(part2,sock1,2,server1);
+					sendpart(part2,sock1,2);
 					//senddata(sock1,".2",sizeof(".2"));
 				}
 				if(returnval2==1)
 				{
-					sendpart(part2,sock2,2,server2);
+					sendpart(part2,sock2,2);
 					//senddata(sock2,".2",sizeof(".2"));
-					sendpart(part3,sock2,3,server2);
+					sendpart(part3,sock2,3);
 					//senddata(sock2,".3",sizeof(".2"));
 				}
 				if(returnval3==1)
 				{
-					sendpart(part3,sock3,3,server3);
+					sendpart(part3,sock3,3);
 					//senddata(sock3,".3",sizeof(".2"));
-					sendpart(part4,sock3,4,server3);
+					sendpart(part4,sock3,4);
 					//senddata(sock3,".4",sizeof(".2"));
 				}
 				if(returnval4==1)
 				{
-					sendpart(part4,sock4,4,server4);	
-					sendpart(part1,sock4,1,server4);
+					sendpart(part4,sock4,4);	
+					sendpart(part1,sock4,1);
 				
 				}
 				
@@ -301,23 +307,23 @@ void main(int argc, char *argv[])
 			{
 				if(returnval1==1)
 				{
-					sendpart(part4,sock1,4,server1);
-					sendpart(part1,sock1,1,server1);
+					sendpart(part4,sock1,4);
+					sendpart(part1,sock1,1);
 				}
 				if(returnval2==1)
 				{
-					sendpart(part1,sock2,1,server2);
-					sendpart(part2,sock2,2,server2);
+					sendpart(part1,sock2,1);
+					sendpart(part2,sock2,2);
 				}
 				if(returnval3==1)
 				{
-					sendpart(part2,sock3,2,server3);
-					sendpart(part3,sock3,3,server3);
+					sendpart(part2,sock3,2);
+					sendpart(part3,sock3,3);
 				}
 				if(returnval4==1)
 				{
-					sendpart(part3,sock4,3,server4);
-					sendpart(part4,sock4,4,server4);
+					sendpart(part3,sock4,3);
+					sendpart(part4,sock4,4);
 				}
 				
 			}
@@ -325,23 +331,23 @@ void main(int argc, char *argv[])
 			{
 				if(returnval1==1)
 				{
-					sendpart(part3,sock1,3,server1);
-					sendpart(part4,sock1,4,server1);
+					sendpart(part3,sock1,3);
+					sendpart(part4,sock1,4);
 				}
 				if(returnval2==1)
 				{
-					sendpart(part4,sock2,4,server2);
-					sendpart(part1,sock2,1,server2);
+					sendpart(part4,sock2,4);
+					sendpart(part1,sock2,1);
 				}
 				if(returnval3==1)
 				{
-					sendpart(part1,sock3,1,server3);
-					sendpart(part2,sock3,2,server3);
+					sendpart(part1,sock3,1);
+					sendpart(part2,sock3,2);
 				}
 				if(returnval4==1)
 				{
-					sendpart(part2,sock4,2,server4);
-					sendpart(part3,sock4,3,server4);
+					sendpart(part2,sock4,2);
+					sendpart(part3,sock4,3);
 				}
 				
 			}
@@ -349,23 +355,23 @@ void main(int argc, char *argv[])
 			{
 				if(returnval1==1)
 				{
-					sendpart(part2,sock1,2,server1);
-					sendpart(part3,sock1,3,server1);
+					sendpart(part2,sock1,2);
+					sendpart(part3,sock1,3);
 				}
 				if(returnval2==1)
 				{
-					sendpart(part3,sock2,3,server2);
-					sendpart(part4,sock2,4,server2);
+					sendpart(part3,sock2,3);
+					sendpart(part4,sock2,4);
 				}
 				if(returnval3==1)
 				{
-					sendpart(part4,sock3,4,server3);
-					sendpart(part1,sock3,1,server3);
+					sendpart(part4,sock3,4);
+					sendpart(part1,sock3,1);
 				}
 				if(returnval4==1)
 				{
-					sendpart(part1,sock4,1,server4);
-					sendpart(part2,sock4,2,server4);
+					sendpart(part1,sock4,1);
+					sendpart(part2,sock4,2);
 				}
 				
 			}
@@ -376,10 +382,10 @@ void main(int argc, char *argv[])
 			//bzero(command,sizeof(command));
 			//command=strtok(argument1,"\n");
 			printf("Command is %s\n",command);
-			returnval1=authenticate(sock1,server1);
-			returnval2=authenticate(sock2,server2);
-			returnval3=authenticate(sock3,server3);
-			returnval4=authenticate(sock4,server4);
+			returnval1=authenticate(sock1);
+			returnval2=authenticate(sock2);
+			returnval3=authenticate(sock3);
+			returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
 			receivedata(sock1,content1,sizeof(content1));
 			receivedata(sock2,content2,sizeof(content2));
@@ -493,10 +499,17 @@ void main(int argc, char *argv[])
 			{
 				if(strlen(ccc[j])>2)
 				{
+					strrev(ccc[j]);
 					sometoken1=strtok(ccc[j],".");
-					sometoken=strtok(ccc[j],".");
+					printf("the string is %s\n",ccc[j]);
+					sometoken=strtok(NULL,"\0");
 					strcpy(ccc[j],sometoken);
 					printf("the string is %s\n",ccc[j]);
+					ccc[j][strlen(ccc[j])-1]='\0';
+					strrev(ccc[j]);
+					printf("the string is %s\n",ccc[j]);
+					
+
 					
 				}
 				
@@ -551,22 +564,15 @@ void main(int argc, char *argv[])
 	//free(token1);
 	//free(token11);
 }
-int senddata(int socket,char* buffer,size_t length,struct sockaddr_in server)
+int senddata(int socketa,char* buffer,size_t length)
 {
-	if (connect(socket,(struct sockaddr *)&server,sizeof(server1))<0)
+	
+	int returndata;
+	if((returndata=send(socketa , buffer , length , 0)) < 0)
 	{
-		perror("connect failed. Error");
+		puts("Send failed");
 	}
-	else
-	{	printf("Connected to %d\n",socket);
-
-		int returndata;
-		if((returndata=send(socket , buffer , length , 0)) < 0)
-		{
-			puts("Send failed");
-		}
-		return returndata;
-	}
+	return returndata;
 }
 int receivedata(int socketa,char* buffer,size_t length)
 {
@@ -578,23 +584,20 @@ int receivedata(int socketa,char* buffer,size_t length)
 	printf("Received message is %s\n",buffer);
 
 }
-int authenticate(int socketa,struct sockaddr_in server)
+int authenticate(int socketa)
 {
-	senddata(socketa,argument,sizeof(argument),server);  
+	senddata(socketa,argument,sizeof(argument));  
 	receivedata(socketa,reply,sizeof(reply));
 	if(strcmp(reply,"pass")==0)
 		return 1;
 	else
 		return 0;
 }
-int sendpart(char *buffer,int socket,int partno,struct sockaddr_in server)
+int sendpart(char *buffer,int socket,int partno)
 {
-	
-	
 	tempbuf=buffer;
 	//returnval1=chunk;
 	//printf("Pehla padav, %d\n",returnval);
-	
 	if(partno==4)
 		rem_bytes=fsize-3*psize;
 	else
@@ -609,7 +612,7 @@ int sendpart(char *buffer,int socket,int partno,struct sockaddr_in server)
 		else
 			temp=rem_bytes;
 	
-	int	returnval=senddata(socket,tempbuf,temp,server);
+	int	returnval=senddata(socket,tempbuf,temp);
 		//printf("Bytes sent are%d\n",returnval);
 		//printf("Data sent is %s\n",tempbuf);
 		bytes_sent+=returnval;
@@ -621,17 +624,18 @@ int sendpart(char *buffer,int socket,int partno,struct sockaddr_in server)
 	printf("Total Bytes sent are%d\n",bytes_sent);
 	receivedata(socket,reply,sizeof(reply));
 	if(partno==1)
-		senddata(socket,".1",sizeof(".1"),server);
+		senddata(socket,".1",sizeof(".1"));
 	else if(partno==2) 
-		senddata(socket,".2",sizeof(".2"),server);
+		senddata(socket,".2",sizeof(".2"));
 	else if(partno==3)
-		senddata(socket,".3",sizeof(".3"),server);
+		senddata(socket,".3",sizeof(".3"));
 	else
-		senddata(socket,".4",sizeof(".4"),server);
+		senddata(socket,".4",sizeof(".4"));
 
 	bytes_sent=0;
 	bzero(tempbuf,sizeof(tempbuf));
 
 }
+
 
 
