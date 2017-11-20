@@ -440,6 +440,7 @@ int main(int argc, char *argv[])
 						strcat(path1,".");
 						strcat(path1,token);	
 						struct partt *part;
+						part=malloc(sizeof(struct partt));
 						part->partnum=atoi(token);
 						printf("Whole path is %s and partnum is %d\n",path1,part->partnum);
 						//struct partt part;
