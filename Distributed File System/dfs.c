@@ -24,11 +24,18 @@ char pass[]="pass";
 char fail[]="fail";
 void parseconf(void);
 int bytes_read,bytes=0;
-char path[100],count;
+char path[100],path1[100],count;
 char *method, *file,* file1, *username, *password,*ret,*user,*passw,*tempbuf,*tempbuf2,*partname,*sub,*sub1,*token,*token1;
 char con[100];
 FILE *fpp;
 char delimiter[]=" ";
+
+struct partt{
+char partnum;
+char tempbuf[partsize];
+};
+
+
 char *strrev(char *str)
 {
       char *p1, *p2;
@@ -53,7 +60,16 @@ void ISRP(int argumet)
 	//printf("Gracefullly exiting\n");
 	exit(0);
 }
-
+void xor_encrypt(char *key, char *string, int n)
+{
+    int i;
+    int keyLength = strlen(key);
+	printf("keylength is %d\n",keyLength);
+    for( i = 0 ; i < n ; i++ )
+    {
+        string[i]=string[i]^key[i%keyLength];
+    }
+}
 void parseconf(void)
 {
 	FILE *fp=fopen("dfs.conf","r");
@@ -84,6 +100,8 @@ int main(int argc, char *argv[])
 	}
 	tempbuf=malloc(partsize*sizeof(char));
 	tempbuf2=malloc(partsize*sizeof(char));
+	bzero(tempbuf,sizeof(tempbuf));
+	bzero(tempbuf2,sizeof(tempbuf2));
 	//content=malloc(chunk*sizeof(char));
 	//content_ptr=content;
 	bzero(&serv,sizeof(serv));                    //zero the struct
@@ -174,6 +192,8 @@ int main(int argc, char *argv[])
 						{
 							bzero(client_message,sizeof(client_message));		
 							bytes_read= recv(client_sock , client_message , chunk , 0);
+							//client_message^=password;
+							//xor_encrypt(password,client_message,bytes_read);
 							//printf("then here\n");						
 							strcpy(tempbuf,client_message);
 							tempbuf+=chunk;
@@ -183,7 +203,9 @@ int main(int argc, char *argv[])
 						}
 			
 						tempbuf-=count*chunk;
-						//printf("Message received is \n%s\n",tempbuf);				
+						//xor_encrypt(passw,tempbuf,bytes);
+						//xor_encrypt(passw,tempbuf,bytes);
+						printf("Message received is \n%s\n",tempbuf);				
 						printf("Total bytes read are %d\n",bytes);
 						write(client_sock , pass ,sizeof(pass));
 						bzero(client_message,sizeof(client_message));
@@ -249,7 +271,9 @@ int main(int argc, char *argv[])
 						{
 							bzero(client_message,sizeof(client_message));			
 							bytes_read= recv(client_sock , client_message , chunk , 0);
-							//printf("then here\n");						
+							//client_message^=password;
+							//printf("then here\n");
+													
 							strcpy(tempbuf2,client_message);
 							tempbuf2+=chunk;
 							bytes+=bytes_read;
@@ -258,7 +282,10 @@ int main(int argc, char *argv[])
 							count++;
 						}
 						tempbuf2-=count*chunk;
-						//printf("Message received is \n%s\n",tempbuf2);
+						//xor_encrypt(passw,tempbuf2,bytes);
+						//xor_encrypt(passw,tempbuf2,bytes);
+						printf("Message received is \n%s\n",tempbuf2);
+					
 						printf("Total bytes read are %d\n",bytes);
 						write(client_sock , pass ,sizeof(pass));
 						bzero(client_message,sizeof(client_message));
@@ -403,9 +430,32 @@ int main(int argc, char *argv[])
 						printf("More Content is %s\n",more_cont);
 						
 						write(client_sock , more_cont ,sizeof(more_cont));
-						
+						bytes_read= recv(client_sock , client_message , chunk , 0);
+						printf("received message is %s\n",client_message);
+						token=strtok(client_message,delimiter);
+						bzero(path1,sizeof(path));
+						strcpy(path1,path);
+						strcat(path1,"/.");
+						strcat(path1,file1);
+						strcat(path1,".");
+						strcat(path1,token);	
+						struct partt *part;
+						part->partnum=atoi(token);
+						printf("Whole path is %s and partnum is %d\n",path1,part->partnum);
+						//struct partt part;
+						fpp=fopen(path1,"r");
+						if(fpp)
+						{
+							bytes_read=fread(part->tempbuf,sizeof(char),partsize,fpp);
+							bytes_read=write(client_sock , part ,bytes_read+1);
+							printf("buffer is \n%s*\n",part->tempbuf);
+							printf("bytes sent are %d\n",bytes_read);
+			
+						}
+						else
+							perror("FILE open failed");
 
-
+						fclose(fpp);
 
 
 					}

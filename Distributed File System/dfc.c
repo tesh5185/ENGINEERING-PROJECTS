@@ -14,7 +14,7 @@ int sendpart(char *buffer,int socket,int partno);
 char *part1,*part2,*part3,*part4,*ret,*con,*dfs1,*dfs2,*dfs3,*dfs4, *user, *pass, *command, *file,*tempbuf, *sometoken,*sometoken1,*sub;
 char *delimiter=" ";
 const int chunk=1024;
-void connecttoservers(void);
+void socket_setup(void);
 int authenticate(int socketa);
 struct sockaddr_in server1,server2,server3,server4;
 int sock1,sock2,sock3,sock4,temp,rem_bytes,fsize;
@@ -24,12 +24,16 @@ bool flag=false;
 char *DFS1, *DFS2, *DFS3, *DFS4,*USER, *PASS;
 char reply[2000],content1[500],content2[500],content3[500],content4[500];
 char argument[100],argument1[100];
-char sub1[]=".1";
-char sub2[]=".2";
-char sub3[]=".3";
-char sub4[]=".4";
+char content[500];
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
-char bss[100][50],ccc[100][50];
+char bss[100][100],ccc[100][100];
+char pa,pb,pb,pc,pd;
+
+struct partt{
+char partnum;
+char tempbuf[partsize];
+};
+
 
 char *strrev(char *str)
 {
@@ -45,7 +49,17 @@ char *strrev(char *str)
       }
       return str;
 }
-void connecttoservers(void)
+void xor_encrypt(char *key, char *string, int n)
+{
+    int i;
+    int keyLength = strlen(key);
+	printf("keylength is %d\n",keyLength);
+    for( i = 0 ; i < n ; i++ )
+    {
+        string[i]=string[i]^key[i%keyLength];
+    }
+}
+void socket_setup(void)
 {
 	
 	server1.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -83,7 +97,7 @@ void connecttoservers(void)
 	}
 	printf("Socket4 successfully created\n");
 	
-	if (connect(sock1 , (struct sockaddr *)&server1 , sizeof(server1)) < 0)
+	/*if (connect(sock1 , (struct sockaddr *)&server1 , sizeof(server1)) < 0)
 	{
 		perror("connect failed. Error");
 	}
@@ -107,7 +121,19 @@ void connecttoservers(void)
 	}
 	else
 		puts("Connected to server 4");
-
+	*/
+}
+int connectserver(int socket,struct sockaddr_in server)
+{
+	int num;
+	num=connect(socket, (struct sockaddr *)&server , sizeof(server1));
+	if (num < 0)
+	{
+		perror("connect failed. Error");
+	}
+	else	 
+		puts("Connected to Server1");
+	return num;
 }
 void main(int argc, char *argv[])
 {
@@ -128,6 +154,10 @@ void main(int argc, char *argv[])
 	part3=malloc(partsize*sizeof(char));
 	part4=malloc(partsize*sizeof(char));
 	tempbuf=malloc(partsize*sizeof(char));
+	bzero(part1,partsize);
+	bzero(part2,partsize);
+	bzero(part3,partsize);
+	bzero(part4,partsize);
 	con=malloc(100*sizeof(char));
 	DFS1=malloc(25*sizeof(char));
 	DFS2=malloc(25*sizeof(char));
@@ -205,7 +235,7 @@ void main(int argc, char *argv[])
 	dfs4=strtok(NULL,":");
 	DFS4=strtok(DFS4,delimiter);
 
-	fgets(argument1,100,stdin);
+	/*fgets(argument1,100,stdin);
 	strcpy(argument,argument1);
 	if(strcmp(argument1,"LIST\n")==0)
 		flag=true;	
@@ -226,10 +256,39 @@ void main(int argc, char *argv[])
 		command=strtok(argument1," ");
 		sub=strtok(NULL,"\n");
 		printf("Command is %s and subfolder is %s\n",command,sub);
-	}
-	connecttoservers();
-	//while(1)
-	//{
+	}*/
+	socket_setup();
+	int a=connectserver(sock1,server1);
+	int b=connectserver(sock2,server2);
+	int c=connectserver(sock3,server3);
+	int d=connectserver(sock4,server4);
+	printf("%d,%d,%d,%d\n",a,b,c,d);
+	while(1)
+	{
+
+		fgets(argument1,100,stdin);
+		strcpy(argument,argument1);
+		if(strncmp(argument1,"LIST",4)==0)
+			flag=true;	
+	
+		strcat(argument,USER);
+		strcat(argument,delimiter);
+		strcat(argument,pass);
+		printf("total string is %s\n",argument);
+		if(!flag)
+		{
+			command=strtok(argument1,delimiter);
+			file=strtok(NULL," ");
+			sub=strtok(NULL,"\n");
+			printf("Command is %s and file is %s and sub is %s\n",argument1,file,sub);
+		}
+		else
+		{
+			command=strtok(argument1," ");
+			sub=strtok(NULL,"\n");
+			printf("Command is %s and subfolder is %s\n",command,sub);
+		}
+		flag =false;
 		bytes_sent=0;
 		if(strcmp(command,"PUT")==0)
 		{
@@ -272,6 +331,10 @@ void main(int argc, char *argv[])
 			returnval3=authenticate(sock3);
 			returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			/*xor_encrypt(pass,part1,psize);
+			xor_encrypt(pass,part2,psize);
+			xor_encrypt(pass,part3,psize);
+			xor_encrypt(pass,part4,fsize-3*psize);*/
 			if (mod==0)
 			{
 				if(returnval1==1)
@@ -381,6 +444,12 @@ void main(int argc, char *argv[])
 		{
 			//bzero(command,sizeof(command));
 			//command=strtok(argument1,"\n");
+			for(int i=0;i<100;i++)
+			{
+				bzero(ccc[i],sizeof(ccc[i]));
+				bzero(bss[i],sizeof(bss[i]));	
+					
+			}
 			printf("Command is %s\n",command);
 			returnval1=authenticate(sock1);
 			returnval2=authenticate(sock2);
@@ -449,7 +518,7 @@ void main(int argc, char *argv[])
 				sometoken=bss[i];
 				
 				sometoken1=strtok(NULL,delimiter);
-				printf("ANDAR\n");
+				printf("ANDAR as well\n");
 				if(sometoken1!=NULL)
 				{	strcpy(sometoken,sometoken1);
 					printf("Next value is %s\n",bss[i]);
@@ -465,7 +534,7 @@ void main(int argc, char *argv[])
 				sometoken=bss[i];
 				
 				sometoken1=strtok(NULL,delimiter);
-				printf("ANDAR\n");
+				printf("ANDAR  jnna\n");
 				if(sometoken1!=NULL)
 				{	strcpy(sometoken,sometoken1);
 					printf("Next value is %s\n",bss[i]);
@@ -494,6 +563,7 @@ void main(int argc, char *argv[])
 					l++;
 				}
 			}
+			flag=false;
 			int count=0;
 			for(int j=0;j<l;j++)
 			{
@@ -555,12 +625,28 @@ void main(int argc, char *argv[])
 			bzero(content3,sizeof(content3));
 			bzero(content4,sizeof(content4));
 			receivedata(sock1,content1,sizeof(content1));
+			sometoken=strtok(content1,delimiter);
+			sometoken1=strtok(NULL,delimiter);
+			strcat(content,sometoken);
+			strcat(content,delimiter);
+			strcat(content,sometoken1);
+			printf("buffer is%s\n",content);
+			senddata(sock1,content,sizeof(content));
+			struct partt *part;
+			bzero(part1,partsize);
+			
+			int nbytes=receivedata(sock1,part1,partsize);
+			printf("Bytes received are %d and size is %dand part is %d\n",nbytes,(int)strlen(part1),part->partnum);
+			/*nbytes=receivedata(sock1,part2,partsize);
+			printf("Bytes received are %d and size is %d\n",nbytes,strlen(part1));
 			receivedata(sock2,content2,sizeof(content2));
 			receivedata(sock3,content3,sizeof(content3));
 			receivedata(sock4,content4,sizeof(content4));
+			*/
 			
 			
 		}
+	}
 	if (con!=NULL)
 		free(con);
 	
@@ -595,12 +681,13 @@ int senddata(int socketa,char* buffer,size_t length)
 int receivedata(int socketa,char* buffer,size_t length)
 {
 	bzero(buffer,length);
-	if( recv(socketa , buffer , length , 0) < 0)
+	int nbytes;
+	if(recv(socketa , buffer , length , 0) < 0)
 	{
 		puts("recv failed");	       
 	}	
-	printf("Received message is %s\n",buffer);
-
+	printf("Received message is %s*\n",buffer);
+	
 }
 int authenticate(int socketa)
 {
@@ -613,7 +700,9 @@ int authenticate(int socketa)
 }
 int sendpart(char *buffer,int socket,int partno)
 {
+	bzero(tempbuf,psize);
 	tempbuf=buffer;
+	
 	//returnval1=chunk;
 	//printf("Pehla padav, %d\n",returnval);
 	if(partno==4)
@@ -621,6 +710,7 @@ int sendpart(char *buffer,int socket,int partno)
 	else
 		rem_bytes=psize;
 	
+	//xor_encrypt(pass,tempbuf,rem_bytes);
 	while(rem_bytes>0)
 	{
 		//printf("Dusra padav\n");
@@ -630,9 +720,11 @@ int sendpart(char *buffer,int socket,int partno)
 		else
 			temp=rem_bytes;
 	
-	int	returnval=senddata(socket,tempbuf,temp);
+		
+		//xor_encrypt(pass,tempbuf,temp);
+		int	returnval=senddata(socket,tempbuf,temp);
 		//printf("Bytes sent are%d\n",returnval);
-		//printf("Data sent is %s\n",tempbuf);
+		printf("Data sent is %s\n",tempbuf);
 		bytes_sent+=returnval;
 		tempbuf+=chunk;
 		rem_bytes-=chunk;
