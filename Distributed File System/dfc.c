@@ -27,7 +27,7 @@ char argument[100],argument1[100];
 char content[500];
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
 char bss[100][100],ccc[100][100];
-char pa,pb,pb,pc,pd;
+char pa,pb,pb,pc,pd,a,b,c,d;
 
 struct partt{
 char partnum;
@@ -134,6 +134,19 @@ int connectserver(int socket,struct sockaddr_in server)
 	else	 
 		puts("Connected to Server1");
 	return num;
+}
+void closesockets(void)
+{
+	if(a>=0)
+		close(sock1);
+	if(b>=0)
+		close(sock2);
+	if(c>=0)
+		close(sock3);
+	if(d>=0)
+		close(sock4);
+
+
 }
 void main(int argc, char *argv[])
 {
@@ -258,14 +271,10 @@ void main(int argc, char *argv[])
 		printf("Command is %s and subfolder is %s\n",command,sub);
 	}*/
 	socket_setup();
-	int a=connectserver(sock1,server1);
-	int b=connectserver(sock2,server2);
-	int c=connectserver(sock3,server3);
-	int d=connectserver(sock4,server4);
-	printf("%d,%d,%d,%d\n",a,b,c,d);
+	
 	while(1)
 	{
-
+		//closesockets();
 		fgets(argument1,100,stdin);
 		strcpy(argument,argument1);
 		if(strncmp(argument1,"LIST",4)==0)
@@ -290,6 +299,12 @@ void main(int argc, char *argv[])
 		}
 		flag =false;
 		bytes_sent=0;
+		socket_setup();
+		a=connectserver(sock1,server1);
+		b=connectserver(sock2,server2);
+		c=connectserver(sock3,server3);
+		d=connectserver(sock4,server4);
+		printf("%d,%d,%d,%d\n",a,b,c,d);
 		if(strcmp(command,"PUT")==0)
 		{
 			
@@ -325,11 +340,15 @@ void main(int argc, char *argv[])
 			printf("the modulus is %d\n",mod);
 	
 			fclose(fp);
-	
-			returnval1=authenticate(sock1);
-			returnval2=authenticate(sock2);
-			returnval3=authenticate(sock3);
-			returnval4=authenticate(sock4);
+			if (a>=0)
+				returnval1=authenticate(sock1);
+			if (b>=0)
+				returnval2=authenticate(sock2);
+			if (c>=0)
+				returnval3=authenticate(sock3);
+			if (d>=0)
+				returnval4=authenticate(sock4);
+
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
 			/*xor_encrypt(pass,part1,psize);
 			xor_encrypt(pass,part2,psize);
@@ -339,30 +358,36 @@ void main(int argc, char *argv[])
 			{
 				if(returnval1==1)
 				{
+					if(a>=0)
+					{
 					sendpart(part1,sock1,1);
 					//senddata(sock1,".1",sizeof(".1"));
 					sendpart(part2,sock1,2);
 					//senddata(sock1,".2",sizeof(".2"));
+					}
 				}
 				if(returnval2==1)
-				{
+				{	if(b>=0)
+					{
 					sendpart(part2,sock2,2);
-					//senddata(sock2,".2",sizeof(".2"));
 					sendpart(part3,sock2,3);
-					//senddata(sock2,".3",sizeof(".2"));
+					}
 				}
 				if(returnval3==1)
 				{
+					if(c>=0)
+					{
 					sendpart(part3,sock3,3);
-					//senddata(sock3,".3",sizeof(".2"));
 					sendpart(part4,sock3,4);
-					//senddata(sock3,".4",sizeof(".2"));
+					}
 				}
 				if(returnval4==1)
-				{
+				{	
+					if(d>=0)
+					{
 					sendpart(part4,sock4,4);	
 					sendpart(part1,sock4,1);
-				
+					}
 				}
 				
 			}
@@ -370,71 +395,89 @@ void main(int argc, char *argv[])
 			{
 				if(returnval1==1)
 				{
+					if(a>=0)
+					{
 					sendpart(part4,sock1,4);
 					sendpart(part1,sock1,1);
+					}
 				}
 				if(returnval2==1)
-				{
+				{	if(b>=0)
+					{
 					sendpart(part1,sock2,1);
-					sendpart(part2,sock2,2);
+					sendpart(part2,sock2,2);}
 				}
 				if(returnval3==1)
-				{
+				{	if(c>=0)
+					{
 					sendpart(part2,sock3,2);
-					sendpart(part3,sock3,3);
+					sendpart(part3,sock3,3);}
 				}
 				if(returnval4==1)
-				{
+				{	if(d>=0)
+					{
 					sendpart(part3,sock4,3);
-					sendpart(part4,sock4,4);
+					sendpart(part4,sock4,4);}
 				}
 				
 			}
 			else if (mod==2)
 			{
 				if(returnval1==1)
-				{
+				{	if(a>=0)
+					{
 					sendpart(part3,sock1,3);
-					sendpart(part4,sock1,4);
+					sendpart(part4,sock1,4);}
 				}
 				if(returnval2==1)
-				{
+				{	if(b>=0)
+					{
 					sendpart(part4,sock2,4);
-					sendpart(part1,sock2,1);
+					sendpart(part1,sock2,1);}
 				}
 				if(returnval3==1)
-				{
+				{	if(c>=0)
+					{
 					sendpart(part1,sock3,1);
-					sendpart(part2,sock3,2);
+					sendpart(part2,sock3,2);}
 				}
 				if(returnval4==1)
-				{
+				{if(d>=0)
+					{
 					sendpart(part2,sock4,2);
-					sendpart(part3,sock4,3);
+					sendpart(part3,sock4,3);}
 				}
 				
 			}
 			else if (mod==3)
 			{
 				if(returnval1==1)
-				{
+				{	if(a>=0)
+					{
 					sendpart(part2,sock1,2);
 					sendpart(part3,sock1,3);
+					}
 				}
 				if(returnval2==1)
-				{
+				{	if(b>=0)
+					{
 					sendpart(part3,sock2,3);
 					sendpart(part4,sock2,4);
+					}
 				}
 				if(returnval3==1)
-				{
+				{	if(c>=0)
+					{
 					sendpart(part4,sock3,4);
 					sendpart(part1,sock3,1);
+					}
 				}
 				if(returnval4==1)
-				{
+				{	if(d>=0)
+					{
 					sendpart(part1,sock4,1);
 					sendpart(part2,sock4,2);
+					}
 				}
 				
 			}
@@ -451,19 +494,32 @@ void main(int argc, char *argv[])
 					
 			}
 			printf("Command is %s\n",command);
-			returnval1=authenticate(sock1);
-			returnval2=authenticate(sock2);
-			returnval3=authenticate(sock3);
-			returnval4=authenticate(sock4);
+			if (a>=0)
+				returnval1=authenticate(sock1);
+			if (b>=0)
+				returnval2=authenticate(sock2);
+			if (c>=0)
+				returnval3=authenticate(sock3);
+			if (d>=0)
+				returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
-			receivedata(sock1,content1,sizeof(content1));
-			receivedata(sock2,content2,sizeof(content2));
-			receivedata(sock3,content3,sizeof(content3));
-			receivedata(sock4,content4,sizeof(content4));
-			printf("Files in directory1 are %s\n",content1);
-			printf("Files in directory2 are %s\n",content2);
-			printf("Files in directory3 are %s\n",content3);
-			printf("Files in directory4 are %s\n",content4);
+			if(a>=0)
+			{	receivedata(sock1,content1,sizeof(content1));
+				printf("Files in directory1 are %s\n",content1);
+			}
+			if(b>=0){
+				receivedata(sock2,content2,sizeof(content2));
+				printf("Files in directory2 are %s\n",content2);}
+			if(c>=0){
+				receivedata(sock3,content3,sizeof(content3));
+				printf("Files in directory3 are %s\n",content3);}
+			if(d>=0){
+				receivedata(sock4,content4,sizeof(content4));
+				printf("Files in directory4 are %s\n",content4);}
+			//printf("Files in directory1 are %s\n",content1);
+			//printf("Files in directory2 are %s\n",content2);
+			//printf("Files in directory3 are %s\n",content3);
+			//printf("Files in directory4 are %s\n",content4);
 			/*int i=0;
 			token1[i]=strtok(content1,delimiter);
 			while(token1[i]!=NULL)
@@ -645,7 +701,7 @@ void main(int argc, char *argv[])
 			*/
 			
 			
-		}
+		}closesockets();
 	}
 	if (con!=NULL)
 		free(con);

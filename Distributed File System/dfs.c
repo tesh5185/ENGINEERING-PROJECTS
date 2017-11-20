@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 	char client_message[chunk];
 	
 	
-//	while(1)
+	//while(1)
 	{
 		client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
 	    if (client_sock < 0)
@@ -146,9 +146,9 @@ int main(int argc, char *argv[])
 	    }
 	    puts("Connection accepted");
 	
-	//	pid_t child = fork();
-		//if (child == 0)
-		{
+		/*pid_t child = fork();
+		if (child == 0)
+		{*/
 		 	while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
 			{
 				//Send the message back to client
@@ -464,14 +464,14 @@ int main(int argc, char *argv[])
 					write(client_sock , fail , sizeof(fail));
 			
 				bzero( client_message , sizeof(client_message));
-				//close(sock);
+				close(sock);
 				//printf("Total bytes read are %d\n",bytes);
-			}close(sock);
-		}
-		//else
+			}//close(sock);
+		/*}
+		else if(child>0)
 		{
-			//close(sock);
-		}
+			close(client_sock);
+		}*/
 		/*if(read_size == 0)
 		{
 		    puts("Client disconnected");
