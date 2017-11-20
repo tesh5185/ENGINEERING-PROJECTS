@@ -28,7 +28,7 @@ char content[500];
 int psize,returnval1,returnval2,returnval3,returnval4,bytes_sent;
 char bss[100][100],ccc[100][100];
 char pa,pb,pb,pc,pd,a,b,c,d;
-
+int size1,size2,size3,size4;
 struct partt{
 char partnum;
 char tempbuf[partsize];
@@ -137,10 +137,30 @@ int connectserver(int socket,struct sockaddr_in server)
 	num=connect(socket, (struct sockaddr *)&server , sizeof(server1));
 	if (num < 0)
 	{
-		perror("connect failed. Error");
+		perror("connect failed Trying again. Error");
+		usleep(500000);
+		num=connect(socket, (struct sockaddr *)&server , sizeof(server1));
+		if (num < 0)
+		{
+			usleep(500000);
+			perror("connect failed Trying again. Error");
+			num=connect(socket, (struct sockaddr *)&server , sizeof(server1));
+			if (num < 0)
+			{
+				perror("SERVER NOT AVAILABLE");
+				num=connect(socket, (struct sockaddr *)&server , sizeof(server1));
+			}
+			//else
+				//continue;
+		}
+		/*else
+		{	 
+			//puts("Connected to Server %d\n",socket);
+			continue;
+		}*/
 	}
 	else	 
-		puts("Connected to Server1");
+		printf("Connected to %d\n",socket);
 	return num;
 }
 void closesockets(void)
@@ -153,6 +173,7 @@ void closesockets(void)
 		close(sock3);
 	if(d>=0)
 		close(sock4);
+	printf("exiting\n");
 
 
 }
@@ -383,6 +404,11 @@ void main(int argc, char *argv[])
 				returnval4=authenticate(sock4);
 
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			if(returnval1==0)
+			{
+				puts("Authentication failed");
+				break;
+			}
 			/*xor_encrypt(pass,part1,psize);
 			xor_encrypt(pass,part2,psize);
 			xor_encrypt(pass,part3,psize);
@@ -536,6 +562,11 @@ void main(int argc, char *argv[])
 			if (d>=0)
 				returnval4=authenticate(sock4);
 			printf("return values are %d %d %d %d\n",returnval1,returnval2,returnval3,returnval4);
+			if(returnval1==0)
+			{
+				puts("Authentication failed");
+				break;
+			}
 			if(a>=0)
 			{	receivedata(sock1,content1,sizeof(content1));
 				printf("Files in directory1 are %s\n",content1);
@@ -713,10 +744,21 @@ void main(int argc, char *argv[])
 				returnval3=authenticate(sock3);
 			if (d>=0)
 				returnval4=authenticate(sock4);
-		
+	
+			if(returnval1==0)
+			{
+				puts("Authentication failed");
+				break;
+			}
+			bzero(content1,sizeof(content1));
+			bzero(content2,sizeof(content2));
 			bzero(content3,sizeof(content3));
 			bzero(content4,sizeof(content4));
 			bzero(content,sizeof(content));
+			bzero(part1,partsize);
+			bzero(part2,partsize);
+			bzero(part3,partsize);
+			bzero(part4,partsize);
 			struct rec recv;
 			recv.flag1=false;
 			recv.flag2=false;
@@ -727,6 +769,7 @@ void main(int argc, char *argv[])
 				receivedata(sock1,content1,sizeof(content1));
 				sometoken=strtok(content1,delimiter);
 				sometoken1=strtok(NULL,delimiter);
+				printf("%sand%s*\n",sometoken,sometoken1);
 				if((strcmp(sometoken,"1")==0) && (recv.flag1==false))
 				{
 					strcat(content,sometoken);
@@ -743,12 +786,13 @@ void main(int argc, char *argv[])
 				{
 					strcat(content,sometoken);
 				}
-				strcat(content,delimiter);
+				if(sometoken!=NULL)
+					strcat(content,delimiter);
 				if((strcmp(sometoken1,"1")==0) && (recv.flag1==false))
 				{
 					strcat(content,sometoken1);
 				}
-				if((strcmp(sometoken1,"1")==0) && (recv.flag2==false))
+				if((strcmp(sometoken1,"2")==0) && (recv.flag2==false))
 				{
 					strcat(content,sometoken1);
 				}
@@ -770,36 +814,449 @@ void main(int argc, char *argv[])
 				struct partt *part;
 				part=malloc(sizeof(struct partt));
 				//puts("zereod");
-				bzero(part1,partsize);
+				
 				//puts("zereod");
 				bzero(part->tempbuf,sizeof(part->tempbuf));
 				//puts("zereod");
 				//int nbytes=receivedata(sock1,part,partsize);
+				//if(sometoken!=)
 				int nbytes=receivestructdata(sock1,part,partsize);
 				
 				printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
-				/*if (part->partnum==1)
+				if (part->partnum==1)
 				{
 					strcpy(part1,part->tempbuf);
 					recv.flag1=true;
+					size1=nbytes-1;
 				}
-				else if (part->partnum==1)
+				else if (part->partnum==2)
 				{
-					strcpy(part1,part->tempbuf);
+					strcpy(part2,part->tempbuf);
 					recv.flag2=true;
+					size2=nbytes-1;
 				}
-				else if (part->partnum==1)
+				else if (part->partnum==3)
 				{
-					strcpy(part1,part->tempbuf);
+					strcpy(part3,part->tempbuf);
 					recv.flag3=true;
+					size3=nbytes-1;
 				}
 				else
 				{
 					strcpy(part4,part->tempbuf);
 					recv.flag4=true;
-				}*/
+					size4=nbytes-1;
+				}
+				if(strlen(content)==3)
+				{
+					nbytes=receivestructdata(sock1,part,partsize);
+				
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+				
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				bzero(content,sizeof(content));
 			}
-			
+			if(b>=0)
+			{
+				receivedata(sock2,content2,sizeof(content2));
+				sometoken=strtok(content2,delimiter);
+				sometoken1=strtok(NULL,delimiter);
+				printf("%sand%s*\n",sometoken,sometoken1);
+				
+				if((strcmp(sometoken,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken);
+				}
+				if(content!=NULL)
+					strcat(content,delimiter);
+				if((strcmp(sometoken1,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken1);
+				}
+				/*	
+				strcat(content,sometoken);
+				strcat(content,delimiter);
+				strcat(content,sometoken1);*/
+				printf("buffer is%s*\n",content);
+				senddata(sock2,content,sizeof(content));
+				puts("zereod1");
+				struct partt *part;
+				part=malloc(sizeof(struct partt));
+				//puts("zereod");
+				puts("zereod2");
+				bzero(part->tempbuf,sizeof(part->tempbuf));
+				puts("zereod3");
+				//int nbytes=receivedata(sock1,part,partsize);
+				//if(sometoken!=)
+				if(strlen(content)>=1)
+				{
+					puts("zereod4");
+					int nbytes=receivestructdata(sock2,part,partsize);
+					puts("zereod5");
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				if(strlen(content)==3)
+				{
+					nbytes=receivestructdata(sock2,part,partsize);
+				
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				bzero(content,sizeof(content));
+			}
+			if(c>=0)
+			{
+				receivedata(sock3,content3,sizeof(content3));
+				sometoken=strtok(content3,delimiter);
+				sometoken1=strtok(NULL,delimiter);
+				printf("%sand%s*\n",sometoken,sometoken1);
+				if((strcmp(sometoken,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken);
+				}
+				if(content!=NULL)
+					strcat(content,delimiter);
+				if((strcmp(sometoken1,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken1);
+				}
+				/*	
+				strcat(content,sometoken);
+				strcat(content,delimiter);
+				strcat(content,sometoken1);*/
+				printf("buffer is%s*\n",content);
+				senddata(sock3,content,sizeof(content));
+				puts("zereod1");
+				struct partt *part;
+				part=malloc(sizeof(struct partt));
+				//puts("zereod");
+				puts("zereod2");
+				bzero(part->tempbuf,sizeof(part->tempbuf));
+				puts("zereod3");
+				//int nbytes=receivedata(sock1,part,partsize);
+				//if(sometoken!=)
+				if(strlen(content)>=1)
+				{
+					puts("zereod4");
+					int nbytes=receivestructdata(sock3,part,partsize);
+					puts("zereod5");
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				if(strlen(content)==3)
+				{
+					nbytes=receivestructdata(sock3,part,partsize);
+				
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+					bzero(content,sizeof(content));
+				}
+			}
+			if(d>=0)
+			{
+				printf("%d\n",flag);
+				bzero(content,sizeof(content));
+				receivedata(sock4,content4,sizeof(content4));
+				sometoken=strtok(content4,delimiter);
+				sometoken1=strtok(NULL,delimiter);
+				printf("%sand%s*\n",sometoken,sometoken1);
+				if((strcmp(sometoken,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken);
+				}
+				if((strcmp(sometoken,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken);
+				}
+				if(content!=NULL)
+					strcat(content,delimiter);
+				if((strcmp(sometoken1,"1")==0) && (recv.flag1==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"2")==0) && (recv.flag2==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"3")==0) && (recv.flag3==false))
+				{
+					strcat(content,sometoken1);
+				}
+				if((strcmp(sometoken1,"4")==0) && (recv.flag4==false))
+				{
+					strcat(content,sometoken1);
+				}
+				/*	
+				strcat(content,sometoken);
+				strcat(content,delimiter);
+				strcat(content,sometoken1);*/
+				printf("buffer is%s*\n",content);
+				senddata(sock4,content,sizeof(content));
+				puts("zereod1");
+				struct partt *part;
+				part=malloc(sizeof(struct partt));
+				//puts("zereod");
+				puts("zereod2");
+				bzero(part->tempbuf,sizeof(part->tempbuf));
+				puts("zereod3");
+				//int nbytes=receivedata(sock1,part,partsize);
+				//if(sometoken!=)
+				if(strlen(content)>=1)
+				{
+					puts("zereod4");
+					int nbytes=receivestructdata(sock4,part,partsize);
+					puts("zereod5");
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				if(strlen(content)==3)
+				{
+					nbytes=receivestructdata(sock4,part,partsize);
+				
+					printf("Bytes received are %d and size is %dand part is %d\n",nbytes-1,(int)strlen(part->tempbuf),part->partnum);
+					if (part->partnum==1)
+					{
+						strcpy(part1,part->tempbuf);
+						recv.flag1=true;
+						size1=nbytes-1;
+					}
+					else if (part->partnum==2)
+					{
+						strcpy(part2,part->tempbuf);
+						recv.flag2=true;
+						size2=nbytes-1;
+					}
+					else if (part->partnum==3)
+					{
+						strcpy(part3,part->tempbuf);
+						recv.flag3=true;
+						size3=nbytes-1;
+					}
+					else
+					{
+						strcpy(part4,part->tempbuf);
+						recv.flag4=true;
+						size4=nbytes-1;
+					}
+				}
+				bzero(content,sizeof(content));
+			}
+			if(recv.flag1 && recv.flag1 && recv.flag1 && recv.flag1)
+			{
+				strcat(file,"_copy");
+				fp=fopen(file,"a");
+				if(fp)
+				{
+					printf("%d\n,%d\n,%d\n,%d\n",size1,size2,size3,size4);
+					fwrite(part1,size1,sizeof(char),fp);
+					fwrite(part2,size2,sizeof(char),fp);
+					fwrite(part3,size3,sizeof(char),fp);
+					fwrite(part4,size4,sizeof(char),fp);
+					puts("FILE COmplete");
+					fclose(fp);
+				}
+				else
+					perror("FILE open failed");
+
+			}
+			else
+				puts("INCOMPLETE FILE ");
 			/*nbytes=receivedata(sock1,part2,partsize);
 			printf("Bytes received are %d and size is %d\n",nbytes,strlen(part1));
 			receivedata(sock2,content2,sizeof(content2));
@@ -873,7 +1330,7 @@ int authenticate(int socketa)
 	if(strcmp(reply,"pass")==0)
 		return 1;
 	else
-		return 0;
+		return 0;		
 }
 
 int sendpart(char *buffer,int socket,int partno)

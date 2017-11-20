@@ -80,6 +80,7 @@ void parseconf(void)
 		user=strtok(con," ");
 		passw=strtok(NULL,"\n");
 	}
+	printf("IN conf file username =*%s* and password=*%s*\n",user,passw);
 	fclose(fp);	
 }
 
@@ -136,7 +137,7 @@ int main(int argc, char *argv[])
 	char client_message[chunk];
 	
 	
-	//while(1)
+	while(1)
 	{
 		client_sock = accept(sock, (struct sockaddr *)&client, (socklen_t*)&c);
 	    if (client_sock < 0)
@@ -146,9 +147,9 @@ int main(int argc, char *argv[])
 	    }
 	    puts("Connection accepted");
 	
-		/*pid_t child = fork();
+		pid_t child = fork();
 		if (child == 0)
-		{*/
+		{
 		 	while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
 			{
 				//Send the message back to client
@@ -179,7 +180,7 @@ int main(int argc, char *argv[])
 				strcpy(user,fail);
 				parseconf();
 				printf("%s %s\n",user,passw);
-				printf("%s %s %s %s %s*\n",method,file,username,password,sub1);
+				printf("%s %s *%s* *%s* %s\n",method,file,username,password,sub1);
 				if (strcmp(passw,password)==0)
 				{
 					write(client_sock , pass ,sizeof(pass));
@@ -433,30 +434,66 @@ int main(int argc, char *argv[])
 						bytes_read= recv(client_sock , client_message , chunk , 0);
 						printf("received message is %s\n",client_message);
 						token=strtok(client_message,delimiter);
-						bzero(path1,sizeof(path));
-						strcpy(path1,path);
-						strcat(path1,"/.");
-						strcat(path1,file1);
-						strcat(path1,".");
-						strcat(path1,token);	
 						struct partt *part;
 						part=malloc(sizeof(struct partt));
-						part->partnum=atoi(token);
-						printf("Whole path is %s and partnum is %d\n",path1,part->partnum);
-						//struct partt part;
-						fpp=fopen(path1,"r");
-						if(fpp)
+						bzero(part->tempbuf,sizeof(part->tempbuf));
+						if(token!=NULL)
 						{
-							bytes_read=fread(part->tempbuf,sizeof(char),partsize,fpp);
-							bytes_read=write(client_sock , part ,bytes_read+1);
-							printf("buffer is \n%s*\n",part->tempbuf);
-							printf("bytes sent are %d\n",bytes_read);
-			
+							bzero(path1,sizeof(path1));
+							strcpy(path1,path);
+							strcat(path1,"/.");
+							strcat(path1,file1);
+							strcat(path1,".");
+							strcat(path1,token);	
+							
+							part->partnum=atoi(token);
+							printf("Whole path is %s and partnum is %d\n",path1,part->partnum);
+							//struct partt part;
+							fpp=fopen(path1,"r");
+							if(fpp)
+							{
+								bytes_read=fread(part->tempbuf,sizeof(char),partsize,fpp);
+								bytes_read=write(client_sock , part ,bytes_read+1);
+								printf("buffer is \n%s*\n",part->tempbuf);
+								printf("bytes sent are %d\n",bytes_read);
+								fclose(fpp);
+							}
+							else
+								perror("FILE open failed");
 						}
-						else
-							perror("FILE open failed");
+						bzero(part->tempbuf,sizeof(part->tempbuf));
+						//while (token!=NULL)
+						{
+							token=strtok(NULL,delimiter);
+							if(token!=NULL)
+							{
+								bzero(path1,sizeof(path1));
+								strcpy(path1,path);
+								strcat(path1,"/.");
+								strcat(path1,file1);
+								strcat(path1,".");
+								strcat(path1,token);	
+								//struct partt *part;
+								//part=malloc(sizeof(struct partt));
+								part->partnum=atoi(token);
+								printf("Whole path is %s and partnum is %d\n",path1,part->partnum);
+								//struct partt part;
+								fpp=fopen(path1,"r");
+								if(fpp)
+								{
+									bytes_read=fread(part->tempbuf,sizeof(char),partsize,fpp);
+									bytes_read=write(client_sock , part ,bytes_read+1);
+									printf("buffer is \n%s*\n",part->tempbuf);
+									printf("bytes sent are %d\n",bytes_read);
+									fclose(fpp);
+								}
+								else
+									perror("FILE open failed");
+							}
 
-						fclose(fpp);
+						}
+
+						//fclose(fpp);
 
 
 					}
@@ -467,12 +504,13 @@ int main(int argc, char *argv[])
 				bzero( client_message , sizeof(client_message));
 				close(sock);
 				//printf("Total bytes read are %d\n",bytes);
-			}//close(sock);
-		/*}
+			}close(sock);
+			close(client_sock);
+		}
 		else if(child>0)
 		{
 			close(client_sock);
-		}*/
+		}
 		/*if(read_size == 0)
 		{
 		    puts("Client disconnected");
