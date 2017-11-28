@@ -64,9 +64,26 @@ void xor_encrypt(char *key, char *string, int n)
 	printf("keylength is %d\n",keyLength);
     for( i = 0 ; i < n ; i++ )
     {
-        string[i]=string[i]^key[i%keyLength];
+		if(string[i] != key[i%keyLength])
+        	string[i]=string[i]^key[i%keyLength];
+		else
+			printf("%c",string[i]^key[i%keyLength]);
     }
 }
+/*
+void xor_encrypt(char *key, char *string, int n)
+{
+    int i;char ptr[n];
+    int keyLength = strlen(key)/sizeof(char);
+	printf("keylength is %d\n",keyLength);
+    for( i = 0 ; i < n ; i++ )
+    {
+        ptr[i]=string[i]^'p';
+    }
+	puts("Encrypting");
+	strncpy(string,ptr,n);
+	//free(ptr);
+}*/
 void socket_setup(void)
 {
 	
@@ -409,10 +426,10 @@ void main(int argc, char *argv[])
 				puts("Authentication failed");
 				break;
 			}
-			/*xor_encrypt(pass,part1,psize);
+			xor_encrypt(pass,part1,psize);
 			xor_encrypt(pass,part2,psize);
 			xor_encrypt(pass,part3,psize);
-			xor_encrypt(pass,part4,fsize-3*psize);*/
+			xor_encrypt(pass,part4,fsize-3*psize);
 			if (mod==0)
 			{
 				if(returnval1==1)
@@ -774,15 +791,15 @@ void main(int argc, char *argv[])
 				{
 					strcat(content,sometoken);
 				}
-				if((strcmp(sometoken,"2")==0) && (recv.flag2==false))
+				else if((strcmp(sometoken,"2")==0) && (recv.flag2==false))
 				{
 					strcat(content,sometoken);
 				}
-				if((strcmp(sometoken,"3")==0) && (recv.flag3==false))
+				else if((strcmp(sometoken,"3")==0) && (recv.flag3==false))
 				{
 					strcat(content,sometoken);
 				}
-				if((strcmp(sometoken,"4")==0) && (recv.flag4==false))
+				else if((strcmp(sometoken,"4")==0) && (recv.flag4==false))
 				{
 					strcat(content,sometoken);
 				}
@@ -879,9 +896,11 @@ void main(int argc, char *argv[])
 					}
 				}
 				bzero(content,sizeof(content));
+				printf("server1 job done\n");
 			}
 			if(b>=0)
 			{
+				printf("b is %d\n",b);
 				receivedata(sock2,content2,sizeof(content2));
 				sometoken=strtok(content2,delimiter);
 				sometoken1=strtok(NULL,delimiter);
@@ -936,7 +955,7 @@ void main(int argc, char *argv[])
 				puts("zereod3");
 				//int nbytes=receivedata(sock1,part,partsize);
 				//if(sometoken!=)
-				if(strlen(content)>=1)
+				if(strlen(content)>1)
 				{
 					puts("zereod4");
 					int nbytes=receivestructdata(sock2,part,partsize);
@@ -998,6 +1017,7 @@ void main(int argc, char *argv[])
 					}
 				}
 				bzero(content,sizeof(content));
+				printf("server2 job done\n");
 			}
 			if(c>=0)
 			{
@@ -1054,7 +1074,7 @@ void main(int argc, char *argv[])
 				puts("zereod3");
 				//int nbytes=receivedata(sock1,part,partsize);
 				//if(sometoken!=)
-				if(strlen(content)>=1)
+				if(strlen(content)>1)
 				{
 					puts("zereod4");
 					int nbytes=receivestructdata(sock3,part,partsize);
@@ -1114,8 +1134,10 @@ void main(int argc, char *argv[])
 						recv.flag4=true;
 						size4=nbytes-1;
 					}
-					bzero(content,sizeof(content));
+					
 				}
+				bzero(content,sizeof(content));
+				printf("server3 job done\n");
 			}
 			if(d>=0)
 			{
@@ -1163,7 +1185,7 @@ void main(int argc, char *argv[])
 				strcat(content,sometoken);
 				strcat(content,delimiter);
 				strcat(content,sometoken1);*/
-				printf("buffer is%s*\n",content);
+				printf("buffer is %s* and %d\n",content,(int)strlen(content));
 				senddata(sock4,content,sizeof(content));
 				puts("zereod1");
 				struct partt *part;
@@ -1174,7 +1196,7 @@ void main(int argc, char *argv[])
 				puts("zereod3");
 				//int nbytes=receivedata(sock1,part,partsize);
 				//if(sometoken!=)
-				if(strlen(content)>=1)
+				if(strlen(content)>1)
 				{
 					puts("zereod4");
 					int nbytes=receivestructdata(sock4,part,partsize);
@@ -1236,8 +1258,9 @@ void main(int argc, char *argv[])
 					}
 				}
 				bzero(content,sizeof(content));
+				printf("server4 job done\n");
 			}
-			if(recv.flag1 && recv.flag1 && recv.flag1 && recv.flag1)
+			if((recv.flag1 && recv.flag2 && recv.flag3 && recv.flag4)==true)
 			{
 				strcat(file,"_copy");
 				fp=fopen(file,"a");
@@ -1359,7 +1382,7 @@ int sendpart(char *buffer,int socket,int partno)
 		//xor_encrypt(pass,tempbuf,temp);
 		int	returnval=senddata(socket,tempbuf,temp);
 		//printf("Bytes sent are%d\n",returnval);
-		printf("Data sent is %s\n",tempbuf);
+		//printf("Data sent is %s\n",tempbuf);
 		bytes_sent+=returnval;
 		tempbuf+=chunk;
 		rem_bytes-=chunk;

@@ -67,9 +67,27 @@ void xor_encrypt(char *key, char *string, int n)
 	printf("keylength is %d\n",keyLength);
     for( i = 0 ; i < n ; i++ )
     {
-        string[i]=string[i]^key[i%keyLength];
+		if(string[i] != key[i%keyLength])
+        	string[i]=string[i]^key[i%keyLength];
+		else
+			printf("%c",string[i]^key[i%keyLength]);
     }
 }
+
+/*void xor_encrypt(char *key, char *string, int n)
+{
+    int i;char ptr[n];
+    int keyLength = strlen(key)/sizeof(char);
+	printf("keylength is %d\n",keyLength);
+    for( i = 0 ; i < n ; i++ )
+    {
+        ptr[i]=string[i]^'p';
+    }
+	puts("Encrypting");
+	strncpy(string,ptr,n);
+	//free(ptr);
+}*/
+
 void parseconf(void)
 {
 	FILE *fp=fopen("dfs.conf","r");
@@ -204,7 +222,7 @@ int main(int argc, char *argv[])
 						}
 			
 						tempbuf-=count*chunk;
-						//xor_encrypt(passw,tempbuf,bytes);
+						xor_encrypt(passw,tempbuf,bytes);
 						//xor_encrypt(passw,tempbuf,bytes);
 						printf("Message received is \n%s\n",tempbuf);				
 						printf("Total bytes read are %d\n",bytes);
@@ -283,7 +301,7 @@ int main(int argc, char *argv[])
 							count++;
 						}
 						tempbuf2-=count*chunk;
-						//xor_encrypt(passw,tempbuf2,bytes);
+						xor_encrypt(passw,tempbuf2,bytes);
 						//xor_encrypt(passw,tempbuf2,bytes);
 						printf("Message received is \n%s\n",tempbuf2);
 					
