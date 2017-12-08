@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 		if (child==0)
 		{
 			//close(server_sock);
-			//puts("Child socket created");
+			puts("Child socket created");
 		    if (client_sock < 0)
 		    {
 		       	perror("accept failed\n");
@@ -135,6 +135,7 @@ int main(int argc, char* argv[])
 				url_copy=strtok(NULL,"\0");
 				url_copy+=1;
 				strcpy(url_copy1,url_copy);
+				strcpy(url_copy2,url_copy);
 				//printf("URL asked:%s\n",url);
 				printf("Diff datas are %s %s %s %s\n",method,url_copy1,version,hostname);
 				conn=strstr(sock_data1,"Connection");
@@ -150,57 +151,18 @@ int main(int argc, char* argv[])
 				{
 
 					bzero(site_data,sizeof(site_data));
-					struct hostent *hp = gethostbyname(hostname);
-
-					 if (hp == NULL) 
-					{
-					    perror("gethostbyname() failed\n");
-					    continue;
-					} 
-					else
-					{
-					   	//printf("%s = ", hp->h_name);
-					    unsigned int i=0;
-					    while ( hp -> h_addr_list[i] != NULL) 
-					    {
-					       	char *ip;
-					        	//ip= (( struct in_addr *)( hp -> h_addr_list[i]));
-					        	//printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));
-					        	//printf("%s %d\n",ip,inet_addr(ip) );
-					        i++;
-					     }
-					    printf("\n");
-					     ssock = socket(AF_INET , SOCK_STREAM , 0);
-
-			    		if(ssock == -1)
-			    		{
-			        		printf("Could not create socket\n");
-			    		}
-			    		//puts("Remote socket created");
-			    		websocket.sin_family = AF_INET;
-			    		websocket.sin_addr.s_addr = inet_addr(inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
-			    		//websocket.sin_addr.s_addr=inet_addr("151.101.48.81");
-			    		websocket.sin_port = htons(80);
-
-						if (connect(ssock , (struct sockaddr *)&websocket , sizeof(websocket)) < 0)
-						{
-							perror("connect failed. Error");
-						}
-						puts("connected");	
-					}
-
-					extra=strrchr(url_copy,'/');
+					extra=strrchr(url_copy2,'/');
 					if(strlen(extra)==1)
 						strcat(url_copy,"index.html");
-					printf("path:%s\n",url_copy );
-					FILE *fp=fopen(url_copy,"r");
+					printf("path:%sand extra is %s\n",url_copy,extra );
+					FILE *fp=fopen(url_copy,"rb");
 					if(fp)
 					{
-						if(dsize=fread(site_data,sizeof(site_data),sizeof(char),fp)<0);
-							perror(read failed);
-
-
-						send(client_sock,site_data,	,0);
+						dsize=fread(site_data,sizeof(site_data),sizeof(char),fp);
+						//printf("Read data is%s\n",site_data);
+						if(dsize<0)
+							perror("read failed");
+						send(client_sock,site_data,dsize,0);
 						printf("sending cached data\n" );
 
 
@@ -253,7 +215,47 @@ int main(int argc, char* argv[])
 							}
 						}
 						
-						
+						struct hostent *hp = gethostbyname(hostname);
+
+					    if (hp == NULL) 
+					    {
+					       perror("gethostbyname() failed\n");
+					    } 
+					    else
+					    {
+					       	//printf("%s = ", hp->h_name);
+					       	unsigned int i=0;
+					       	while ( hp -> h_addr_list[i] != NULL) 
+					       	{
+					       		char *ip;
+					        	//ip= (( struct in_addr *)( hp -> h_addr_list[i]));
+					        	//printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));
+					        	//printf("%s %d\n",ip,inet_addr(ip) );
+					        	i++;
+					       	}
+					       	printf("\n");
+					       	ssock = socket(AF_INET , SOCK_STREAM , 0);
+
+			    		   	if(ssock == -1)
+			    		   	{
+			        			printf("Could not create socket\n");
+			    			}
+			    			//puts("Remote socket created");
+			    		   	websocket.sin_family = AF_INET;
+			    			websocket.sin_addr.s_addr = inet_addr(inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
+			    			//websocket.sin_addr.s_addr=inet_addr("151.101.48.81");
+			    			websocket.sin_port = htons(80);
+			    			/*if( bind(ssock,(struct sockaddr *)&websocket , sizeof(websocket)) < 0)
+			    			{
+			      				//print the error message
+			        			perror("bind failed. Error\n");
+			        			return 1;
+			    			}
+							puts("Bind done");*/
+							if (connect(ssock , (struct sockaddr *)&websocket , sizeof(websocket)) < 0)
+							{
+								perror("connect failed. Error");
+							}
 							//puts("website connected");
 							//bzero(site_data,sizeof(site_data));
 							//printf("Request Message: %s\n", sock_data1);
@@ -265,11 +267,11 @@ int main(int argc, char* argv[])
 					       	if(strlen(extra1)==1)
 					       		strcat(url_copy2,"index.html");
 
-					       	printf("the total path is %s\n",url_copy2);
-					       	FILE *fw=fopen(url_copy2,"w");
+					       	//printf("the total path is %s\n",url_copy2);
+					       	FILE *fw=fopen(url_copy2,"wb");
 					       	if(fw)
 					       	{
-					       		fwrite(site_data,ssize,sizeof(char),fw);
+					       		fwrite(site_data,sizeof(char),ssize,fw);
 					       		fclose(fw);
 					       	}
 					       	else
@@ -277,14 +279,17 @@ int main(int argc, char* argv[])
 					       	//printf("size is %d and data is %s\n",ssize,site_data);
 					       	send(client_sock,site_data,ssize,0);
 					       	//printf("sent\n");
-					       	close(ssock);
-					       	close(client_sock);
-					       	exit(0);
+					       	
+				       	}
 				       
 				   	}
+				   	
 			    }
 			    
 			}
+			close(ssock);
+					close(client_sock);
+					exit(0);
 		}
 		else if(child>0)
 		{
