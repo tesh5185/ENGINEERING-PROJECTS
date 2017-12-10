@@ -122,6 +122,7 @@ int main(int argc, char* argv[])
 				char *url_copy1=malloc(70*sizeof(char));
 				char *url_copy2=malloc(70*sizeof(char));
 				char *extra1=malloc(25*sizeof(char));
+
 				//printf("HTTP client req: %s\n",sock_data);
 				strcpy(sock_data1,sock_data);		
 				method=strtok(sock_data,space);
@@ -129,6 +130,7 @@ int main(int argc, char* argv[])
 				version=strtok(NULL,"\r\n");
 				hostname=strtok(NULL,space);
 				hostname=strtok(NULL,"\r\n");
+				bzero(url_copy,sizeof(url_copy));
 				strcpy(url_copy,url);
 				url_copy=strtok(url_copy,"/");
 				//url_copy=strtok(NULL,"/");
@@ -167,6 +169,10 @@ int main(int argc, char* argv[])
 
 
 						fclose(fp);
+						
+						close(client_sock);
+						//exit(0);
+
 					}
 					else
 					{	
@@ -267,7 +273,7 @@ int main(int argc, char* argv[])
 					       	if(strlen(extra1)==1)
 					       		strcat(url_copy2,"index.html");
 
-					       	//printf("the total path is %s\n",url_copy2);
+					       	printf("the total path is %s\n",url_copy2);
 					       	FILE *fw=fopen(url_copy2,"wb");
 					       	if(fw)
 					       	{
@@ -278,7 +284,10 @@ int main(int argc, char* argv[])
 					       		puts("File open failed");
 					       	//printf("size is %d and data is %s\n",ssize,site_data);
 					       	send(client_sock,site_data,ssize,0);
-					       	//printf("sent\n");
+					       	printf("sent\n");
+					       	close(ssock);
+					       	close(client_sock);
+							exit(0);
 					       	
 				       	}
 				       
@@ -287,9 +296,7 @@ int main(int argc, char* argv[])
 			    }
 			    
 			}
-			close(ssock);
-					close(client_sock);
-					exit(0);
+
 		}
 		else if(child>0)
 		{
