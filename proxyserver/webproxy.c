@@ -23,7 +23,7 @@
 char *site="www.google.com";
 int client_sock,c,server_sock,ssock;
 char sock_data[5000],sock_data1[5000],final_data[1000];
-char site_data[100000];
+char site_data[1000000];
 int nbytes=0;
 char space[]=" ";
 char *method, *url, *version, *hostname, *conn,*extra;
@@ -118,10 +118,10 @@ int main(int argc, char* argv[])
 				//printf(" New Connection accepted\n return value =%d\n",client_sock);
 				nbytes=recvfrom(client_sock , sock_data , sizeof(sock_data),0,(struct sockaddr *)&client, (socklen_t*)&c);
 				//printf("data is %s\n",sock_data);
-				char *url_copy=malloc(70*sizeof(char));
-				char *url_copy1=malloc(70*sizeof(char));
-				char *url_copy2=malloc(70*sizeof(char));
-				char *extra1=malloc(25*sizeof(char));
+				char *url_copy=malloc(100*sizeof(char));
+				char *url_copy1=malloc(100*sizeof(char));
+				char *url_copy2=malloc(100*sizeof(char));
+				char *extra1=malloc(50*sizeof(char));
 
 				//printf("HTTP client req: %s\n",sock_data);
 				strcpy(sock_data1,sock_data);		
@@ -156,21 +156,22 @@ int main(int argc, char* argv[])
 					extra=strrchr(url_copy2,'/');
 					if(strlen(extra)==1)
 						strcat(url_copy,"index.html");
-					printf("path:%sand extra is %s\n",url_copy,extra );
-					FILE *fp=fopen(url_copy,"rb");
+					//printf("path:%sand extra is %s\n",url_copy,extra );
+					FILE *fp=fopen(url_copy,"r");
 					if(fp)
 					{
-						dsize=fread(site_data,sizeof(site_data),sizeof(char),fp);
-						//printf("Read data is%s\n",site_data);
+						dsize=fread(site_data,sizeof(char),sizeof(site_data),fp);
+						printf("path:%sand extra is %s\n",url_copy,extra );
+						printf("Read data size is %d\n",dsize);
 						if(dsize<0)
 							perror("read failed");
 						send(client_sock,site_data,dsize,0);
-						printf("sending cached data\n" );
+						printf("sent cached data\n" );
 
 
 						fclose(fp);
 						
-						close(client_sock);
+						//close(client_sock);
 						//exit(0);
 
 					}
@@ -274,11 +275,12 @@ int main(int argc, char* argv[])
 					       		strcat(url_copy2,"index.html");
 
 					       	printf("the total path is %s\n",url_copy2);
-					       	FILE *fw=fopen(url_copy2,"wb");
+					       	FILE *fw=fopen(url_copy2,"w");
 					       	if(fw)
 					       	{
-					       		fwrite(site_data,sizeof(char),ssize,fw);
+					       		dsize=fwrite(site_data,sizeof(char),ssize,fw);
 					       		fclose(fw);
+					       		printf("written size is %d\n",dsize);
 					       	}
 					       	else
 					       		puts("File open failed");
@@ -286,12 +288,13 @@ int main(int argc, char* argv[])
 					       	send(client_sock,site_data,ssize,0);
 					       	printf("sent\n");
 					       	close(ssock);
-					       	close(client_sock);
-							exit(0);
 					       	
 				       	}
 				       
 				   	}
+
+					       	close(client_sock);
+							exit(0);
 				   	
 			    }
 			    
