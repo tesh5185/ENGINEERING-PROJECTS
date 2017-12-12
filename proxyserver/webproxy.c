@@ -52,6 +52,45 @@ void makedir(char *path)
 	}
 
 }
+
+char blocked(char *host,char *ip)
+{
+
+	//printf("hostname is%s* and ip is %s*\n",host,ip );
+	char hostname[50],ipaddr[50];
+	strcpy(hostname,host);
+	strcpy(ipaddr,ip);
+	strcat(hostname,"\n");
+	strcat(ipaddr,"\n");
+	printf("hostname is %s and ip is %s\n",hostname,ipaddr );
+	FILE *b=fopen("blocked","r");
+	//puts("inside");
+	char * ptr;
+	char *block=malloc(100);
+	ptr=fgets(block,100,b);
+	printf("site is %s",block);
+	//if(strcmp(host))
+	while(ptr)
+	{
+		ptr=fgets(block,100,b);
+		if(ptr)
+		{
+			printf("site is %s",block);
+			if((strcmp(hostname,block)==0)||(strcmp(ipaddr,block)==0))
+			{
+				char error[]="HTTP/1.1 403 Bad Request\n\n<html><body>Error 403 Forbidden: Blocked :<<request method>></body></html>";			/*invalid Method*/
+				send(client_sock,error,strlen(error),0);
+				exit(0);	
+			}
+		}
+		
+	}
+	fclose(b);
+	free(block);
+	//printf("400 BAD Method\n");
+	
+
+}
 int main(int argc, char* argv[])
 {
 	//puts("start");
@@ -82,6 +121,7 @@ int main(int argc, char* argv[])
     //serv.sin_addr.s_addr = inet_addr("8.8.8.8");
     //serv.sin_port = htons(80);
 	//Bind
+	//blocked();
     if( bind(server_sock,(struct sockaddr *)&serv , sizeof(serv)) < 0)
     {
         //print the error message
@@ -91,7 +131,7 @@ int main(int argc, char* argv[])
 	puts("Bind done");
 	
 	
-	listen(server_sock , 20);
+	listen(server_sock , 30);
 	puts("Waiting for incoming connections...");
     c = sizeof(struct sockaddr_in);
 	while(1)
@@ -105,7 +145,7 @@ int main(int argc, char* argv[])
 		if (child==0)
 		{
 			//close(server_sock);
-			puts("Child socket created");
+			//puts("Child socket created");
 		    if (client_sock < 0)
 		    {
 		       	perror("accept failed\n");
@@ -185,21 +225,10 @@ int main(int argc, char* argv[])
 						url_copy1=strtok(url_copy1,"/");
 						
 						printf("url copy is %s\n",url_copy1 );
+						//blocked(url_copy1);
 						strcpy(url_copy2,url_copy1);
 						makedir(url_copy2);
-						/*struct stat st = {0};
-
-						if (stat(url_copy1, &st) == -1) 
-						{		
-											
-							if(mkdir(url_copy1, 0700)==-1)
-								perror("File not made");
-							else
-								puts("mkdir successful");
-							//umask(mask);
-
-						}*/
-						//extra=strrchr(url_copy1,'/');
+						
 						if(strlen(extra1)==1)
 							puts("index.html");
 						else
@@ -207,7 +236,7 @@ int main(int argc, char* argv[])
 							while(url_copy1!=NULL)
 							{
 								url_copy1=strtok(NULL,"/");
-								printf("url copy is %s\n",url_copy1 );
+								//printf("url copy is %s\n",url_copy1 );
 								if(url_copy1!=NULL)
 								{
 									if(strchr(url_copy1,'.')==NULL)
@@ -241,6 +270,7 @@ int main(int argc, char* argv[])
 					        	i++;
 					       	}
 					       	printf("\n");
+					       	blocked( hp->h_name,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
 					       	ssock = socket(AF_INET , SOCK_STREAM , 0);
 
 			    		   	if(ssock == -1)
@@ -293,10 +323,17 @@ int main(int argc, char* argv[])
 				       
 				   	}
 
-					       	close(client_sock);
-							exit(0);
+					close(client_sock);
+					exit(0);
 				   	
 			    }
+			    else
+			    {
+				    printf("400 BAD Method\n");
+					char error[]="HTTP/1.1 400 Bad Request\n\n<html><body>400 Bad Request Reason: Invalid Method :<<request method>></body></html>";			/*invalid Method*/
+					send(client_sock,error,strlen(error),0);
+					//continue;
+				}
 			    
 			}
 
