@@ -27,7 +27,7 @@ char site_data[1000000];
 int nbytes=0;
 char space[]=" ";
 char *method, *url, *version, *hostname, *conn,*extra;
-char header[100]= "http://";
+//char header[100]= "http://";
 int dsize,ssize;
 void ISRP(int argumet)
 {
@@ -45,8 +45,8 @@ void makedir(char *path)
 											
 		if(mkdir(path, 0700)==-1)
 			perror("File not made");
-		else
-			puts("mkdir successful");
+		//else
+			//puts("mkdir successful");
 			
 
 	}
@@ -62,20 +62,26 @@ char blocked(char *host,char *ip)
 	strcpy(ipaddr,ip);
 	strcat(hostname,"\n");
 	strcat(ipaddr,"\n");
-	printf("hostname is %s and ip is %s\n",hostname,ipaddr );
+	//printf("hostname is %s and ip is %s\n",hostname,ipaddr );
 	FILE *b=fopen("blocked","r");
 	//puts("inside");
 	char * ptr;
 	char *block=malloc(100);
 	ptr=fgets(block,100,b);
-	printf("site is %s",block);
+	//printf("site is %s",block);
+	if((strcmp(hostname,block)==0)||(strcmp(ipaddr,block)==0))
+	{
+		char error[]="HTTP/1.1 403 Bad Request\n\n<html><body>Error 403 Forbidden: Blocked :<<request method>></body></html>";			/*invalid Method*/
+		send(client_sock,error,strlen(error),0);
+				exit(0);	
+	}
 	//if(strcmp(host))
 	while(ptr)
 	{
 		ptr=fgets(block,100,b);
 		if(ptr)
 		{
-			printf("site is %s",block);
+			//printf("site is %s",block);
 			if((strcmp(hostname,block)==0)||(strcmp(ipaddr,block)==0))
 			{
 				char error[]="HTTP/1.1 403 Bad Request\n\n<html><body>Error 403 Forbidden: Blocked :<<request method>></body></html>";			/*invalid Method*/
@@ -89,18 +95,32 @@ char blocked(char *host,char *ip)
 	free(block);
 	//printf("400 BAD Method\n");
 	
+}
+int delete(char *path,long timeout)
+{
+	struct stat check;
 
+	if(stat(path,&check)>=0)
+	{
+		time_t current_time;
+		current_time=time(NULL);
+		//printf("current time time %ld",current_time);
+		//printf("Last modified time %ld",check.st_mtime);
+		
+		if((current_time-check.st_mtime)>timeout)
+			remove(path);
+	}
 }
 int main(int argc, char* argv[])
 {
 	//puts("start");
 
-	if (argc<2)
+	if (argc<3)
 	{
-		puts("Need a port number");
+		puts("Need a port number and a timeout");
 		exit(0);
 	}	
-
+	long timm=atoi(argv[2]);
 	signal(SIGINT,ISRP);
 	struct sockaddr_in serv,websocket,client;
 	//socklen_t socket_length = sizeof(websocket);
@@ -131,9 +151,10 @@ int main(int argc, char* argv[])
 	puts("Bind done");
 	
 	
-	listen(server_sock , 30);
+	listen(server_sock , 20);
 	puts("Waiting for incoming connections...");
     c = sizeof(struct sockaddr_in);
+    
 	while(1)
 	{
 		/*
@@ -179,7 +200,7 @@ int main(int argc, char* argv[])
 				strcpy(url_copy1,url_copy);
 				strcpy(url_copy2,url_copy);
 				//printf("URL asked:%s\n",url);
-				printf("Diff datas are %s %s %s %s\n",method,url_copy1,version,hostname);
+				//printf("Diff datas are %s %s %s %s\n",method,url_copy1,version,hostname);
 				conn=strstr(sock_data1,"Connection");
 				if(conn)
 					conn=strtok(conn,"\r\n");
@@ -194,21 +215,30 @@ int main(int argc, char* argv[])
 
 					bzero(site_data,sizeof(site_data));
 					extra=strrchr(url_copy2,'/');
+					/*check=time(NULL);
+				    printf("checked time %ld",check);*/
 					if(strlen(extra)==1)
 						strcat(url_copy,"index.html");
+
+					delete(url_copy,timm);
+					/*struct stat abc;
+					if(stat(url_copy,&abc)==-1)
+					{
+						perror("stat issue");
+					}
+					else
+						printf("other time is %ld",abc.st_mtime);*/
 					//printf("path:%sand extra is %s\n",url_copy,extra );
 					FILE *fp=fopen(url_copy,"r");
 					if(fp)
 					{
 						dsize=fread(site_data,sizeof(char),sizeof(site_data),fp);
-						printf("path:%sand extra is %s\n",url_copy,extra );
-						printf("Read data size is %d\n",dsize);
+						//printf("path:%sand extra is %s\n",url_copy,extra );
+						//printf("Read data size is %d\n",dsize);
 						if(dsize<0)
 							perror("read failed");
 						send(client_sock,site_data,dsize,0);
 						printf("sent cached data\n" );
-
-
 						fclose(fp);
 						
 						//close(client_sock);
@@ -221,16 +251,16 @@ int main(int argc, char* argv[])
 						
 						strcpy(extra1,extra);
 						
-						printf("here %s and %s\n",extra,url_copy1 );
+						//printf("here %s and %s\n",extra,url_copy1 );
 						url_copy1=strtok(url_copy1,"/");
 						
-						printf("url copy is %s\n",url_copy1 );
+						//printf("url copy is %s\n",url_copy1 );
 						//blocked(url_copy1);
 						strcpy(url_copy2,url_copy1);
 						makedir(url_copy2);
 						
 						if(strlen(extra1)==1)
-							puts("index.html");
+							{}//puts("index.html");
 						else
 						{
 							while(url_copy1!=NULL)
@@ -269,7 +299,7 @@ int main(int argc, char* argv[])
 					        	//printf("%s %d\n",ip,inet_addr(ip) );
 					        	i++;
 					       	}
-					       	printf("\n");
+					       	//printf("\n");
 					       	blocked( hp->h_name,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
 					       	ssock = socket(AF_INET , SOCK_STREAM , 0);
 
@@ -300,23 +330,24 @@ int main(int argc, char* argv[])
 					       	dsize=send(ssock,final_data,strlen(final_data),0);
 					       	sleep(1);
 					       	ssize=recv(ssock, site_data , sizeof(site_data),0);
+					       	
 					       	strcat(url_copy2,extra1);
 					       	if(strlen(extra1)==1)
 					       		strcat(url_copy2,"index.html");
 
-					       	printf("the total path is %s\n",url_copy2);
+					       	//printf("the total path is %s\n",url_copy2);
 					       	FILE *fw=fopen(url_copy2,"w");
 					       	if(fw)
 					       	{
 					       		dsize=fwrite(site_data,sizeof(char),ssize,fw);
 					       		fclose(fw);
-					       		printf("written size is %d\n",dsize);
+					       		//printf("written size is %d\n",dsize);
 					       	}
 					       	else
 					       		puts("File open failed");
 					       	//printf("size is %d and data is %s\n",ssize,site_data);
 					       	send(client_sock,site_data,ssize,0);
-					       	printf("sent\n");
+					       	//printf("sent\n");
 					       	close(ssock);
 					       	
 				       	}
