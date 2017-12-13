@@ -111,6 +111,88 @@ int delete(char *path,long timeout)
 			remove(path);
 	}
 }
+char *ipcache(char *host)
+{
+
+	char *ptr;
+	char *cache=malloc(100);
+	char *id; 
+	bzero(cache,sizeof(cache));
+	char *line=malloc(100);
+	FILE *fc=fopen("cache","a");
+	if(fc)
+	{
+		ptr=fgets(cache,100,fc);
+		printf("first value is %s*\n",cache);
+		while(ptr)
+		{
+			bzero(cache,sizeof(cache));
+			ptr=fgets(cache,100,fc);
+			printf("Next value is %s\n",cache);
+			if(ptr)
+			{
+				id=strtok(ptr,space);
+				id=strtok(NULL,"\n");
+				printf("Hostname is %s and id is %s\n",ptr,id);
+				if(strcmp(ptr,host)==0)
+				{	
+					printf("Hostname is %s and id is %s\n",ptr,id);
+					return id;
+				}
+			}
+		}
+				//else
+		struct hostent *hp = gethostbyname(host);
+		bzero(line,sizeof(line));
+		//printf("host is %s\n",host);
+		if (hp == NULL) 
+		{
+		    perror("gethostbyname() failed\n");
+		} 
+		else
+		{
+				    	
+			//printf("%s = ", hp->h_name);
+			//printf(" is %s\n",host);
+			unsigned int i=0;
+			while ( hp -> h_addr_list[i] != NULL) 
+			{
+				char *ip;
+				//ip= (( struct in_addr *)( hp -> h_addr_list[i]));
+				//printf( "%s ", inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i])));
+				//printf("%s %d\n",ip,inet_addr(ip) );
+				i++;
+			}
+					    
+			sprintf(line,"%s %s\n",hp->h_name,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
+			if(strcmp(hp->h_name,host)!=0)
+			{	
+				fwrite(line,strlen(line),sizeof(char),fc);
+			}
+			
+			//printf("Line is %s\n",line);
+			return inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1]));				//{
+				
+					
+		}   
+				   
+
+	fclose(fc);
+				
+	}			
+	else
+		perror("IP cache open failed");		//}	
+			
+			
+
+		//}
+		
+	//}
+	
+	//free(cache);
+
+
+}
 int main(int argc, char* argv[])
 {
 	//puts("start");
@@ -280,7 +362,9 @@ int main(int argc, char* argv[])
 
 							}
 						}
-						
+						char *abc =ipcache(hostname);
+						printf("return value%s\n",abc);
+						/*
 						struct hostent *hp = gethostbyname(hostname);
 
 					    if (hp == NULL) 
@@ -300,7 +384,8 @@ int main(int argc, char* argv[])
 					        	i++;
 					       	}
 					       	//printf("\n");
-					       	blocked( hp->h_name,inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
+					       	*/
+					       	blocked( hostname,abc);
 					       	ssock = socket(AF_INET , SOCK_STREAM , 0);
 
 			    		   	if(ssock == -1)
@@ -309,7 +394,8 @@ int main(int argc, char* argv[])
 			    			}
 			    			//puts("Remote socket created");
 			    		   	websocket.sin_family = AF_INET;
-			    			websocket.sin_addr.s_addr = inet_addr(inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
+			    		   	websocket.sin_addr.s_addr = inet_addr(abc);
+			    			//websocket.sin_addr.s_addr = inet_addr(inet_ntoa( *( struct in_addr*)( hp -> h_addr_list[i-1])));
 			    			//websocket.sin_addr.s_addr=inet_addr("151.101.48.81");
 			    			websocket.sin_port = htons(80);
 			    			/*if( bind(ssock,(struct sockaddr *)&websocket , sizeof(websocket)) < 0)
@@ -350,7 +436,7 @@ int main(int argc, char* argv[])
 					       	//printf("sent\n");
 					       	close(ssock);
 					       	
-				       	}
+				       //	}
 				       
 				   	}
 
